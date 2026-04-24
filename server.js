@@ -21,7 +21,7 @@ const webhooksRoutes  = require('./routes/webhooks');
 
 const app  = express();
 const PORT = parseInt(process.env.PORT || '3001');
-const FRONTEND = process.env.FRONTEND_URL || 'https://quotly-devis.netlify.app';
+const FRONTEND = process.env.FRONTEND_URL || 'https://quotly-frontend.vercel.app/';
 
 // ─── Sécurité ─────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
