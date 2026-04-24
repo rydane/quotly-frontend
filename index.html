@@ -502,8 +502,8 @@ footer{background:var(--ink);padding:56px 48px 32px}
     <div style="font-size:48px;margin-bottom:16px">🔒</div>
     <h2 style="font-size:1.4rem;font-weight:800;letter-spacing:-.5px;margin-bottom:8px;color:var(--ink)">Limite atteinte !</h2>
     <p style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6">Vous avez utilisé vos <b>5 devis gratuits</b>. Passez au plan Pro pour générer des devis illimités.</p>
-    <a href="https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ" target="_blank" style="display:block;background:var(--moss);color:#fff;padding:14px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:10px;transition:background .2s">⭐ Passer au plan Pro — 29€/mois</a>
-    <a href="https://www.paypal.com/ncp/payment/BXFT9S9669PWY" target="_blank" style="display:block;background:transparent;color:var(--moss);border:1.5px solid var(--moss);padding:13px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s">Plan Équipe — 69€/mois</a>
+    <a href="https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ" target="_blank" onclick="handlePayPalClick('pro')" style="display:block;background:var(--moss);color:#fff;padding:14px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:10px;transition:background .2s">⭐ Passer au plan Pro — 29€/mois</a>
+    <a href="https://www.paypal.com/ncp/payment/BXFT9S9669PWY" target="_blank" onclick="handlePayPalClick('team')" style="display:block;background:transparent;color:var(--moss);border:1.5px solid var(--moss);padding:13px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s">Plan Équipe — 69€/mois</a>
     <p style="font-size:12px;color:var(--muted);margin-top:16px">Paiement sécurisé via PayPal · Résiliable à tout moment</p>
   </div>
 </div>
@@ -959,7 +959,8 @@ async function incrementQuota() {
     const newQuota = (current.quota_used || 0) + 1;
     current.quota_used = newQuota;
     localStorage.setItem('quotly_current', JSON.stringify(current));
-    DB.updateUser(current.id, { quota_used: newQuota });
+    // Notifier le backend
+    try { await apiFetch('/api/user/quota', 'POST', { quota_used: newQuota }); } catch(e) {}
   } else {
     const val = parseInt(localStorage.getItem('quotly_quota_guest') || '0') + 1;
     localStorage.setItem('quotly_quota_guest', val);
@@ -971,13 +972,22 @@ function isPro() {
   return current && (current.plan === 'pro' || current.plan === 'team');
 }
 
+function isTeam() {
+  const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
+  return current && current.plan === 'team';
+}
+
 function updateQuotaBadge() {
   const used = getQuota();
   const remaining = Math.max(0, QUOTA_FREE - used);
   const badge = document.getElementById('quotaBadge');
   if (badge) {
-    if (isPro()) {
-      badge.textContent = '✅ Plan Pro — Devis illimités';
+    const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
+    if (current && current.plan === 'team') {
+      badge.textContent = '👥 Plan Équipe — Devis illimités';
+      badge.style.color = 'var(--gold)';
+    } else if (isPro()) {
+      badge.textContent = '⭐ Plan Pro — Devis illimités';
       badge.style.color = 'var(--moss)';
     } else {
       badge.textContent = '📋 ' + remaining + ' devis gratuit' + (remaining > 1 ? 's' : '') + ' restant' + (remaining > 1 ? 's' : '');
@@ -1456,8 +1466,21 @@ function switchTab(tab) {
   ts.style.color      = isSignup ? '#fff'        : 'var(--muted)';
 }
 
-/* =========== BACKEND CONFIG (localStorage fallback) =========== */
-// Système d'auth local — pas de dépendance serveur
+/* =========== BACKEND CONFIG =========== */
+const API_URL = 'https://quotly-backend.onrender.com';
+
+async function apiFetch(path, method = 'GET', body = null) {
+  const token = localStorage.getItem('quotly_token');
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_URL + path, opts);
+  return res;
+}
+
+// Shim de compatibilité pour le code existant (historique, etc.)
 const DB = {
   getUsers() { return JSON.parse(localStorage.getItem('quotly_users') || '[]'); },
   saveUsers(u) { localStorage.setItem('quotly_users', JSON.stringify(u)); },
@@ -1466,9 +1489,7 @@ const DB = {
   createUser(name, email, pass) {
     const users = this.getUsers();
     const user = { id: 'u_' + Date.now(), name, email, password: pass, plan: 'free', quota_used: 0, created: new Date().toISOString() };
-    users.push(user);
-    this.saveUsers(users);
-    return user;
+    users.push(user); this.saveUsers(users); return user;
   },
   updateUser(id, data) {
     const users = this.getUsers();
@@ -1478,35 +1499,41 @@ const DB = {
   }
 };
 
-async function sbFetch(path, method, body) {
-  // Shim pour compatibilité — redirige vers DB local
-  return { ok: true, json: async () => [] };
-}
-
 /* =========== MOT DE PASSE OUBLIÉ =========== */
 let _forgotUser = null;
 
-function handleForgotStep1() {
+async function handleForgotStep1() {
   const email = document.getElementById('forgotEmail').value.trim();
   if (!email || !email.includes('@')) {
     toast('⚠ Entrez un email valide', 'err');
     return;
   }
-  const user = DB.findByEmail(email);
-  if (!user) {
-    toast('❌ Aucun compte trouvé avec cet email', 'err');
-    return;
+  // Vérifier dans le backend si le compte existe
+  try {
+    const res = await apiFetch('/api/auth/forgot-password', 'POST', { email });
+    const data = await res.json();
+    if (!res.ok) {
+      toast('❌ Aucun compte trouvé avec cet email', 'err');
+      return;
+    }
+    _forgotUser = { email, name: data.name || email };
+    document.getElementById('forgotAccountInfo').innerHTML =
+      '👤 <b>' + _forgotUser.name + '</b> · ' + email;
+    document.getElementById('forgotStep1').style.display = 'none';
+    document.getElementById('forgotStep2').style.display = 'block';
+  } catch(e) {
+    // Fallback local si backend indisponible
+    const user = DB.findByEmail(email);
+    if (!user) { toast('❌ Aucun compte trouvé avec cet email', 'err'); return; }
+    _forgotUser = user;
+    document.getElementById('forgotAccountInfo').innerHTML =
+      '👤 <b>' + user.name + '</b> · ' + user.email;
+    document.getElementById('forgotStep1').style.display = 'none';
+    document.getElementById('forgotStep2').style.display = 'block';
   }
-  _forgotUser = user;
-  // Afficher les infos du compte trouvé
-  document.getElementById('forgotAccountInfo').innerHTML =
-    '👤 <b>' + user.name + '</b> · ' + user.email +
-    '<br><span style="font-size:11px;color:var(--muted)">Plan ' + (user.plan === 'pro' ? 'Pro ⭐' : user.plan === 'team' ? 'Équipe 👥' : 'Gratuit') + '</span>';
-  document.getElementById('forgotStep1').style.display = 'none';
-  document.getElementById('forgotStep2').style.display = 'block';
 }
 
-function handleForgotStep2() {
+async function handleForgotStep2() {
   const newPass     = document.getElementById('newPass').value.trim();
   const confirmPass = document.getElementById('confirmPass').value.trim();
 
@@ -1520,16 +1547,28 @@ function handleForgotStep2() {
     return;
   }
 
-  // Mettre à jour dans la DB locale
-  DB.updateUser(_forgotUser.id, { password: newPass });
+  try {
+    const res = await apiFetch('/api/auth/reset-password', 'POST', {
+      email: _forgotUser.email || _forgotUser,
+      password: newPass
+    });
+    if (res.ok) {
+      _forgotUser = null;
+      closeModal();
+      toast('✅ Mot de passe réinitialisé ! Vous pouvez vous connecter.', 'success');
+      return;
+    }
+  } catch(e) {}
 
-  // Si c'est l'utilisateur connecté, mettre à jour sa session
-  const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
-  if (current && current.id === _forgotUser.id) {
-    current.password = newPass;
-    localStorage.setItem('quotly_current', JSON.stringify(current));
+  // Fallback local
+  if (_forgotUser && _forgotUser.id) {
+    DB.updateUser(_forgotUser.id, { password: newPass });
+    const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
+    if (current && current.id === _forgotUser.id) {
+      current.password = newPass;
+      localStorage.setItem('quotly_current', JSON.stringify(current));
+    }
   }
-
   _forgotUser = null;
   closeModal();
   toast('✅ Mot de passe réinitialisé ! Vous pouvez vous connecter.', 'success');
@@ -1545,14 +1584,20 @@ async function handleSignup() {
   if (pass.length < 6) { toast('⚠ Mot de passe trop court (min. 6 caractères)', 'err'); return; }
   if (!email.includes('@')) { toast('⚠ Email invalide', 'err'); return; }
 
-  if (DB.findByEmail(email)) { toast('⚠ Cet email est déjà utilisé', 'err'); return; }
-
-  const user = DB.createUser(name, email, pass);
-  localStorage.setItem('quotly_current', JSON.stringify(user));
-  closeModal();
-  updateNavAuth(user.name, user.plan);
-  updateQuotaBadge();
-  toast('✅ Compte créé ! Bienvenue ' + user.name + ' 🎉', 'success');
+  try {
+    const res = await apiFetch('/api/auth/register', 'POST', { name, email, password: pass });
+    const data = await res.json();
+    if (!res.ok) { toast('❌ ' + (data.message || data.error || 'Erreur inscription'), 'err'); return; }
+    // Succès — stocker token + user
+    localStorage.setItem('quotly_token', data.token);
+    localStorage.setItem('quotly_current', JSON.stringify(data.user || data));
+    closeModal();
+    updateNavAuth(data.user ? data.user.name : name, data.user ? data.user.plan : 'free');
+    updateQuotaBadge();
+    toast('✅ Compte créé ! Bienvenue ' + name + ' 🎉', 'success');
+  } catch(e) {
+    toast('❌ Serveur indisponible, réessayez', 'err');
+  }
 }
 
 async function handleLogin() {
@@ -1561,30 +1606,70 @@ async function handleLogin() {
 
   if (!email || !pass) { toast('⚠ Remplissez tous les champs', 'err'); return; }
 
-  const user = DB.findByEmail(email);
-  if (!user) { toast('❌ Aucun compte trouvé avec cet email', 'err'); return; }
-  if (user.password !== pass) { toast('❌ Mot de passe incorrect', 'err'); return; }
-
-  // Refresh depuis DB
-  const fresh = DB.findById(user.id) || user;
-  localStorage.setItem('quotly_current', JSON.stringify(fresh));
-  closeModal();
-  updateNavAuth(fresh.name, fresh.plan);
-  updateQuotaBadge();
-  toast('✅ Bienvenue ' + fresh.name + ' !', 'success');
+  try {
+    const res = await apiFetch('/api/auth/login', 'POST', { email, password: pass });
+    const data = await res.json();
+    if (!res.ok) { toast('❌ ' + (data.message || data.error || 'Identifiants incorrects'), 'err'); return; }
+    // Stocker token + user
+    localStorage.setItem('quotly_token', data.token);
+    const user = data.user || data;
+    localStorage.setItem('quotly_current', JSON.stringify(user));
+    closeModal();
+    updateNavAuth(user.name, user.plan || 'free');
+    updateQuotaBadge();
+    toast('✅ Bienvenue ' + user.name + ' !', 'success');
+  } catch(e) {
+    toast('❌ Serveur indisponible, réessayez', 'err');
+  }
 }
 
 function updateNavAuth(name, plan) {
   const btns = document.getElementById('navAuthDiv');
   if (!btns) return;
-  const planBadge = plan === 'pro' ? ' <span style="background:var(--lime);color:var(--ink);font-size:10px;padding:2px 8px;border-radius:100px;font-weight:700">PRO</span>' : plan === 'team' ? ' <span style="background:var(--gold);color:#fff;font-size:10px;padding:2px 8px;border-radius:100px;font-weight:700">ÉQUIPE</span>' : '';
+  let planBadge = '';
+  if (plan === 'pro') planBadge = ' <span style="background:var(--lime);color:var(--ink);font-size:10px;padding:2px 8px;border-radius:100px;font-weight:700">PRO ⭐</span>';
+  else if (plan === 'team') planBadge = ' <span style="background:var(--gold);color:#fff;font-size:10px;padding:2px 8px;border-radius:100px;font-weight:700">ÉQUIPE 👥</span>';
+
+  const subscribeBtn = (plan === 'free' || !plan)
+    ? `<button onclick="showUpgradeModal()" style="background:var(--lime);color:var(--ink);border:none;padding:8px 14px;border-radius:100px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">⭐ Passer Pro</button>`
+    : `<button onclick="openAccountModal()" style="background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:8px 14px;border-radius:100px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer">Mon abonnement</button>`;
+
   btns.innerHTML =
     '<span style="font-size:13px;font-weight:600;color:var(--moss)">👤 ' + name + planBadge + '</span>' +
+    subscribeBtn +
     '<button style="background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:8px 14px;border-radius:100px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer" onclick="handleLogout()">Déconnexion</button>';
+}
+
+/* =========== ACCOUNT / SUBSCRIPTION MODAL =========== */
+function openAccountModal() {
+  const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
+  if (!current) return;
+  const plan = current.plan || 'free';
+  const planLabel = plan === 'team' ? 'Plan Équipe 👥 — 69€/mois' : plan === 'pro' ? 'Plan Pro ⭐ — 29€/mois' : 'Plan Gratuit';
+  const html = `
+    <div style="position:fixed;inset:0;background:rgba(15,14,12,.6);z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)" id="accountModal" onclick="if(event.target.id==='accountModal')this.remove()">
+      <div style="background:#fff;border-radius:24px;padding:36px;width:100%;max-width:400px;position:relative;animation:fadeUp .3s ease both;text-align:center">
+        <button onclick="document.getElementById('accountModal').remove()" style="position:absolute;top:14px;right:14px;background:var(--cream);border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;color:var(--muted)">×</button>
+        <div style="font-size:40px;margin-bottom:12px">${plan === 'team' ? '👥' : plan === 'pro' ? '⭐' : '👤'}</div>
+        <h3 style="font-size:1.2rem;font-weight:800;margin-bottom:4px;color:var(--ink)">${current.name}</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:6px">${current.email}</p>
+        <div style="background:var(--cream);border-radius:12px;padding:12px 16px;margin:16px 0;font-size:14px;font-weight:600;color:var(--ink)">${planLabel}</div>
+        ${plan !== 'free' ? `
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">Pour gérer ou résilier votre abonnement, rendez-vous sur PayPal.</p>
+        <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" style="display:block;background:var(--ink);color:#fff;padding:12px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:10px">🔗 Gérer sur PayPal</a>
+        ` : `
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Passez Pro pour débloquer les devis illimités, l'envoi par email et plus encore.</p>
+        <button onclick="document.getElementById('accountModal').remove();showUpgradeModal()" style="width:100%;background:var(--moss);color:#fff;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">⭐ Passer au plan Pro — 29€/mois</button>
+        `}
+        <button onclick="handleLogout()" style="width:100%;background:none;color:var(--muted);border:1.5px solid var(--border);padding:11px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer">Se déconnecter</button>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 function handleLogout() {
   localStorage.removeItem('quotly_current');
+  localStorage.removeItem('quotly_token');
   location.reload();
 }
 
@@ -1595,18 +1680,66 @@ function showUpgradeModal() {
   m.style.justifyContent = 'center';
 }
 
-// Init au chargement
+// Init au chargement — vérifie le plan depuis le backend
 window.addEventListener('DOMContentLoaded', async () => {
   const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
-  if (current) {
-    // Rafraîchir depuis la DB locale
-    const fresh = DB.findById(current.id);
-    const user = fresh || current;
-    localStorage.setItem('quotly_current', JSON.stringify(user));
-    updateNavAuth(user.name, user.plan);
+  const token = localStorage.getItem('quotly_token');
+  if (current && token) {
+    try {
+      // Rafraîchir le plan depuis le backend (PayPal webhook peut avoir mis à jour le plan)
+      const res = await apiFetch('/api/auth/me');
+      if (res.ok) {
+        const fresh = await res.json();
+        const user = fresh.user || fresh;
+        localStorage.setItem('quotly_current', JSON.stringify(user));
+        updateNavAuth(user.name, user.plan || 'free');
+      } else {
+        // Token expiré ou invalide
+        updateNavAuth(current.name, current.plan || 'free');
+      }
+    } catch(e) {
+      // Serveur indisponible — utiliser le cache local
+      updateNavAuth(current.name, current.plan || 'free');
+    }
   }
   updateQuotaBadge();
+
+  // Vérifier si retour depuis PayPal (paramètre URL ?plan=pro ou ?plan=team)
+  const urlParams = new URLSearchParams(window.location.search);
+  const planParam = urlParams.get('plan');
+  if (planParam && (planParam === 'pro' || planParam === 'team') && current && token) {
+    setTimeout(async () => {
+      try {
+        const res = await apiFetch('/api/auth/me');
+        if (res.ok) {
+          const fresh = await res.json();
+          const user = fresh.user || fresh;
+          localStorage.setItem('quotly_current', JSON.stringify(user));
+          updateNavAuth(user.name, user.plan || 'free');
+          updateQuotaBadge();
+          if (user.plan === 'pro' || user.plan === 'team') {
+            toast('🎉 Abonnement activé ! Bienvenue dans le plan ' + (user.plan === 'team' ? 'Équipe' : 'Pro') + ' !', 'success');
+          }
+        }
+      } catch(e) {}
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 2000);
+  }
 });
+
+/* =========== PAYPAL REDIRECT avec email =========== */
+function handlePayPalClick(planType) {
+  const current = JSON.parse(localStorage.getItem('quotly_current') || 'null');
+  if (!current) {
+    toast('⚠ Connectez-vous d\'abord pour souscrire', 'err');
+    openModal('login');
+    return false;
+  }
+  // Stocker l'email en attente de paiement pour que le webhook puisse associer le plan
+  localStorage.setItem('quotly_pending_plan', planType);
+  return true; // Laisser le lien PayPal s'ouvrir
+}
 
 // Close modal on backdrop click
 document.addEventListener('click', e => {
