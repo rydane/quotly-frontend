@@ -259,8 +259,6 @@ footer{background:var(--ink);padding:56px 48px 32px}
 .tpl-btn{flex:1;min-width:80px;padding:10px 8px;border:2px solid var(--border);border-radius:12px;background:#fff;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
 .tpl-btn:hover{border-color:var(--moss);color:var(--moss);background:rgba(45,74,45,.04)}
 .tpl-btn.active{border-color:var(--moss);color:var(--moss);background:rgba(45,74,45,.07)}
-.tpl-btn.tpl-locked{opacity:.55;cursor:pointer;position:relative}
-.tpl-btn.tpl-locked .tpl-lock{font-size:11px;position:absolute;top:4px;right:4px}
 .tpl-btn .tpl-icon{font-size:18px}
 
 /* ====== EMAIL MODAL ====== */
@@ -551,10 +549,10 @@ footer{background:var(--ink);padding:56px 48px 32px}
         <div style="margin-bottom:16px">
           <label class="form-label">🎨 Template</label>
           <div class="template-picker" id="templatePicker">
-            <button class="tpl-btn active" data-tpl="classique" onclick="selectTemplate('classique',this)"><span class="tpl-icon">📄</span>Classique</button>
-            <button class="tpl-btn" data-tpl="moderne" onclick="selectTemplate('moderne',this)"><span class="tpl-icon">✨</span>Moderne</button>
-            <button class="tpl-btn" data-tpl="artisan" onclick="selectTemplate('artisan',this)"><span class="tpl-icon">🔨</span>Artisan</button>
-            <button class="tpl-btn" data-tpl="minimal" onclick="selectTemplate('minimal',this)"><span class="tpl-icon">⬜</span>Minimal</button>
+            <button class="tpl-btn active" onclick="selectTemplate('classique',this)"><span class="tpl-icon">📄</span>Classique</button>
+            <button class="tpl-btn" onclick="selectTemplate('moderne',this)"><span class="tpl-icon">✨</span>Moderne</button>
+            <button class="tpl-btn" onclick="selectTemplate('artisan',this)"><span class="tpl-icon">🔨</span>Artisan</button>
+            <button class="tpl-btn" onclick="selectTemplate('minimal',this)"><span class="tpl-icon">⬜</span>Minimal</button>
           </div>
         </div>
 
@@ -1182,37 +1180,6 @@ function buildPDF() {
     doc.text(doc.splitTextToSize(notes, W-M*2), M, y);
   }
 
-  // ── Signature ──────────────────────────────────────────────────────────────
-  if (sigData) {
-    // Calculer la position Y après les notes
-    let sigY;
-    if (notes) {
-      const noteLines = doc.splitTextToSize(notes, W - M * 2);
-      sigY = y + noteLines.length * 4.5 + 14;
-    } else {
-      sigY = y + 52;
-    }
-    // Ne dessiner que s'il reste de la place avant le pied de page
-    if (sigY < 256) {
-      doc.setDrawColor(220, 216, 204);
-      doc.setLineWidth(0.3);
-      doc.line(M, sigY - 4, W - M, sigY - 4);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(122, 117, 104);
-      doc.text('SIGNATURE CLIENT', M, sigY);
-      try {
-        doc.addImage(sigData, 'PNG', M, sigY + 4, 60, 24);
-      } catch (e) {
-        doc.setFontSize(9).setTextColor(180, 0, 0).text('[Erreur image signature]', M, sigY + 14);
-      }
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(160, 155, 145);
-      doc.text('Signé le ' + new Date().toLocaleDateString('fr-FR'), M, sigY + 30);
-    }
-  }
-
   // Footer line
   doc.setDrawColor(220,216,204);
   doc.setLineWidth(0.3);
@@ -1247,11 +1214,6 @@ const templates = {
   minimal:   { headerColor:[100,100,100],accentColor:[50,50,50], bgColor:[248,248,248], label:'Minimal' },
 };
 function selectTemplate(name, btn) {
-  const PRO_ONLY_TPL = ['moderne', 'artisan', 'minimal'];
-  if (PRO_ONLY_TPL.includes(name) && !isPro()) {
-    showUpgradeModal();
-    return;
-  }
   currentTemplate = name;
   document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -1300,7 +1262,6 @@ let sigCtx, sigDrawing = false, sigSigned = false, sigData = null;
 let sigLastX = 0, sigLastY = 0;
 
 function openSigModal() {
-  if (!isPro()) { showUpgradeModal(); return; }
   document.getElementById('sigModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(initSigCanvas, 100);
@@ -1392,7 +1353,6 @@ function saveToHistory(sent=false) {
 }
 
 function convertToInvoice() {
-  if (!isPro()) { showUpgradeModal(); return; }
   const num = document.getElementById('quoteNum').value.trim();
   if (!num) { toast('⚠ Générez d\'abord un devis', 'err'); return; }
   const h = getHistory();
@@ -1409,7 +1369,6 @@ function convertToInvoice() {
 }
 
 function openStatsModal() {
-  if (!isPro()) { showUpgradeModal(); return; }
   const h = getHistory();
   // KPI
   const total = h.length;
@@ -1664,31 +1623,8 @@ async function handleLogin() {
   }
 }
 
-
-function updateTemplatePicker() {
-  const proTemplates = ['moderne', 'artisan', 'minimal'];
-  document.querySelectorAll('.tpl-btn[data-tpl]').forEach(btn => {
-    const tpl = btn.getAttribute('data-tpl');
-    if (proTemplates.includes(tpl)) {
-      if (!isPro()) {
-        btn.classList.add('tpl-locked');
-        if (!btn.querySelector('.tpl-lock')) {
-          const lock = document.createElement('span');
-          lock.className = 'tpl-lock';
-          lock.textContent = '🔒';
-          btn.appendChild(lock);
-        }
-      } else {
-        btn.classList.remove('tpl-locked');
-        const lock = btn.querySelector('.tpl-lock');
-        if (lock) lock.remove();
-      }
-    }
-  });
-}
 function updateNavAuth(name, plan) {
   const btns = document.getElementById('navAuthDiv');
-  setTimeout(updateTemplatePicker, 50);
   if (!btns) return;
   let planBadge = '';
   if (plan === 'pro') planBadge = ' <span style="background:var(--lime);color:var(--ink);font-size:10px;padding:2px 8px;border-radius:100px;font-weight:700">PRO ⭐</span>';
