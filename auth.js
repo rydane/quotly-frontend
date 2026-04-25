@@ -1,9 +1,0 @@
-node_modules/
-.env
-data/
-uploads/logos/*.jpg
-uploads/logos/*.png
-uploads/logos/*.webp
-uploads/logos/*.svg
-*.log
-.DS_Store
