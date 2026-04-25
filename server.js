@@ -60,8 +60,8 @@ app.use(globalLimiter);
 
 // ─── Body parsers ─────────────────────────────────────────────────────────────
 // Note: /api/webhooks/paypal utilise express.raw(), monté avant json()
-app.use('/api/webhooks', webhooksRoutes);
 app.use(express.json({ limit: '10mb' }));
+app.use('/api/webhooks', webhooksRoutes);
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
