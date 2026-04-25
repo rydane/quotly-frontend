@@ -10,7 +10,7 @@ const router = express.Router();
  * GET /api/stats
  * Tableau de bord : CA, taux d'acceptation, devis en attente, etc.
  */
-router.get('/', requireAuth, requirePlan('pro', 'team'), (req, res) => {
+router.get('/', requireAuth, (req, res) => {
   const uid = req.user.id;
 
   // ── Devis ─────────────────────────────────────────────────────────────────

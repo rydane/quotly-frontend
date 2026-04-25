@@ -146,4 +146,34 @@ router.delete('/account', requireAuth, async (req, res) => {
   }
 });
 
+
+/** POST /api/auth/forgot-password — vérifie que le compte existe */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requis.' });
+    const user = db.prepare('SELECT id, name, email FROM users WHERE email = ?')
+      .get(email.toLowerCase().trim());
+    if (!user) return res.status(404).json({ error: 'Aucun compte trouvé avec cet email.' });
+    res.json({ message: 'Compte trouvé.', name: user.name });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+/** POST /api/auth/reset-password — réinitialise le mot de passe */
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis.' });
+    if (password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères).' });
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase().trim());
+    if (!user) return res.status(404).json({ error: 'Compte introuvable.' });
+    const hash = await bcrypt.hash(password, 12);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id);
+    res.json({ message: 'Mot de passe réinitialisé avec succès.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
 module.exports = router;
