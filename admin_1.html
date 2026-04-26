@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quotly Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .box { background: #111; border: 1px solid #222; border-radius: 16px; padding: 36px; width: 100%; max-width: 440px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 28px; }
+  label { font-size: 12px; font-weight: 600; color: #888; letter-spacing: .05em; display: block; margin-bottom: 6px; text-transform: uppercase; }
+  input, select { width: 100%; padding: 11px 14px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; color: #fff; font-size: 14px; outline: none; transition: border .2s; margin-bottom: 16px; font-family: inherit; }
+  input:focus, select:focus { border-color: #16a34a; }
+  input::placeholder { color: #444; }
+  select option { background: #1a1a1a; }
+  button { width: 100%; padding: 13px; background: #16a34a; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background .2s; font-family: inherit; }
+  button:hover { background: #15803d; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .msg { margin-top: 16px; padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; text-align: center; }
+  .msg.ok  { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+  .msg.err { background: #1c0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+  .lock { text-align: center; font-size: 48px; margin-bottom: 20px; }
+  .divider { border: none; border-top: 1px solid #222; margin: 24px 0; }
+  .log { margin-top: 20px; background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 10px; padding: 14px; font-size: 12px; color: #666; max-height: 160px; overflow-y: auto; font-family: monospace; }
+  .log div { padding: 3px 0; border-bottom: 1px solid #1a1a1a; }
+  .log div:last-child { border: none; }
+  .log .ok  { color: #4ade80; }
+  .log .err { color: #f87171; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="lock">🔐</div>
+  <h1>Quotly Admin</h1>
+  <p class="sub">Panneau d'administration — accès restreint</p>
+
+  <div id="loginSection">
+    <label>Mot de passe admin</label>
+    <input type="password" id="pwd" placeholder="Entrez le mot de passe admin" onkeydown="if(event.key==='Enter')unlock()" />
+    <button onclick="unlock()">Déverrouiller</button>
+    <div id="loginMsg"></div>
+  </div>
+
+  <div id="adminSection" style="display:none">
+    <label>Email utilisateur</label>
+    <input type="email" id="email" placeholder="utilisateur@email.com" />
+
+    <label>Plan à activer</label>
+    <select id="plan">
+      <option value="pro">⭐ Pro — 29€/mois</option>
+      <option value="team">👥 Équipe — 69€/mois</option>
+      <option value="starter">🔓 Starter (gratuit)</option>
+    </select>
+
+    <button id="btn" onclick="activate()">Activer le plan</button>
+    <div id="msg"></div>
+
+    <hr class="divider">
+
+    <div style="font-size:12px; color:#555; margin-bottom:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;">Historique</div>
+    <div class="log" id="log"><div style="color:#444">Aucune action effectuée</div></div>
+  </div>
+</div>
+
+<script>
+const API = 'https://quotly-backend.onrender.com/api';
+// Le mot de passe admin est votre JWT_SECRET
+const ADMIN_SECRET = 'aZ9kP2mXqL8nR4vT6wY1uI3oE5qA7sD2fG';
+let unlocked = false;
+
+function unlock() {
+  const pwd = document.getElementById('pwd').value.trim();
+  if (pwd === ADMIN_SECRET) {
+    unlocked = true;
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('adminSection').style.display = 'block';
+  } else {
+    document.getElementById('loginMsg').innerHTML = '<div class="msg err">❌ Mot de passe incorrect</div>';
+  }
+}
+
+function log(msg, type) {
+  const logEl = document.getElementById('log');
+  const time = new Date().toLocaleTimeString('fr-FR');
+  const first = logEl.querySelector('div[style]');
+  if (first && first.style.color === 'rgb(68, 68, 68)') first.remove();
+  logEl.insertAdjacentHTML('afterbegin', `<div class="${type}">[${time}] ${msg}</div>`);
+}
+
+async function activate() {
+  if (!unlocked) return;
+  const email = document.getElementById('email').value.trim();
+  const plan  = document.getElementById('plan').value;
+  const msgEl = document.getElementById('msg');
+  const btn   = document.getElementById('btn');
+
+  if (!email || !email.includes('@')) {
+    msgEl.innerHTML = '<div class="msg err">⚠️ Entrez un email valide</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Activation en cours…';
+  msgEl.innerHTML = '';
+
+  try {
+    const res = await fetch(`${API}/webhooks/paypal/activate-manual`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: ADMIN_SECRET, email, plan }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`);
+    msgEl.innerHTML = `<div class="msg ok">✅ ${json.message}</div>`;
+    log(`✅ Plan "${plan}" activé pour ${email}`, 'ok');
+    document.getElementById('email').value = '';
+  } catch(e) {
+    msgEl.innerHTML = `<div class="msg err">❌ ${e.message}</div>`;
+    log(`❌ Échec pour ${email} — ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Activer le plan';
+  }
+}
+</script>
+</body>
+</html>
