@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quotly — Devis pro en 60 secondes</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['DM Sans', 'sans-serif'], serif: ['Playfair Display', 'serif'] },
+      colors: {
+        forest: { 50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',300:'#86efac',400:'#4ade80',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534',900:'#14532d',950:'#052e16' },
+        cream: '#faf9f6',
+        ink: '#111827',
+      }
+    }
+  }
+}
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: 'DM Sans', sans-serif; background: #faf9f6; color: #111827; -webkit-font-smoothing: antialiased; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+  /* ── Animations ── */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+  @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+  @keyframes scaleIn { from { transform:scale(.92); opacity:0; } to { transform:scale(1); opacity:1; } }
+
+  .fade-up { animation: fadeUp .5s ease both; }
+  .fade-in { animation: fadeIn .3s ease both; }
+  .slide-in { animation: slideIn .3s cubic-bezier(.16,1,.3,1) both; }
+  .scale-in { animation: scaleIn .2s ease both; }
+
+  .delay-1 { animation-delay: .1s; }
+  .delay-2 { animation-delay: .2s; }
+  .delay-3 { animation-delay: .3s; }
+  .delay-4 { animation-delay: .4s; }
+  .delay-5 { animation-delay: .5s; }
+
+  /* ── Spinner ── */
+  .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+  .spinner-dark { border-color:rgba(0,0,0,.1); border-top-color:#166534; }
+
+  /* ── Canvas signature ── */
+  #sigCanvas { cursor:crosshair; touch-action:none; }
+
+  /* ── Grain texture on hero ── */
+  .grain::before {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity:.4;
+  }
+
+  /* ── Badge ── */
+  .badge { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:600; letter-spacing:.02em; }
+
+  /* ── Input ── */
+  .inp { width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; color:#111827; background:#fff; outline:none; transition:border-color .2s, box-shadow .2s; }
+  .inp:focus { border-color:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.12); }
+  .inp::placeholder { color:#9ca3af; }
+
+  /* ── Select ── */
+  .sel { width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; color:#111827; background:#fff; outline:none; cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 8l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; background-size:16px; padding-right:36px; transition:border-color .2s; }
+  .sel:focus { border-color:#16a34a; outline:none; }
+
+  /* ── Textarea ── */
+  .ta { width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; color:#111827; background:#fff; outline:none; resize:vertical; min-height:80px; transition:border-color .2s; }
+  .ta:focus { border-color:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.12); }
+
+  /* ── Btn ── */
+  .btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; background:#166534; color:#fff; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:background .2s, transform .1s, box-shadow .2s; }
+  .btn-primary:hover { background:#14532d; box-shadow:0 4px 14px rgba(22,101,52,.3); }
+  .btn-primary:active { transform:scale(.98); }
+  .btn-primary:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+  .btn-secondary { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 22px; background:#fff; color:#166534; border:1.5px solid #16a34a; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; }
+  .btn-secondary:hover { background:#f0fdf4; }
+
+  .btn-ghost { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; background:transparent; color:#6b7280; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; cursor:pointer; transition:all .2s; }
+  .btn-ghost:hover { background:#f3f4f6; color:#111827; }
+
+  .btn-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 22px; background:#fff; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; }
+  .btn-danger:hover { background:#fef2f2; }
+
+  /* ── Modal overlay ── */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.45); backdrop-filter:blur(4px); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .2s ease; }
+  .modal-box { background:#fff; border-radius:20px; padding:32px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; animation:scaleIn .2s ease; box-shadow:0 25px 60px rgba(0,0,0,.15); }
+  .modal-box-lg { max-width:720px; }
+
+  /* ── Card ── */
+  .card { background:#fff; border-radius:16px; border:1px solid #e5e7eb; padding:24px; }
+
+  /* ── Status badges ── */
+  .status-draft    { background:#f3f4f6; color:#6b7280; }
+  .status-sent     { background:#eff6ff; color:#2563eb; }
+  .status-accepted { background:#f0fdf4; color:#16a34a; }
+  .status-refused  { background:#fef2f2; color:#dc2626; }
+  .status-expired  { background:#fff7ed; color:#ea580c; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { padding:10px 14px; text-align:left; font-weight:600; color:#6b7280; font-size:12px; letter-spacing:.05em; text-transform:uppercase; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
+  td { padding:12px 14px; border-bottom:1px solid #f3f4f6; color:#374151; }
+  tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:#f9fafb; }
+
+  /* ── Toasts ── */
+  #toasts { position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+  .toast { padding:12px 18px; border-radius:12px; font-size:14px; font-weight:500; max-width:340px; pointer-events:all; animation:slideIn .3s cubic-bezier(.16,1,.3,1); box-shadow:0 8px 30px rgba(0,0,0,.12); }
+  .toast-success { background:#166534; color:#fff; }
+  .toast-error   { background:#dc2626; color:#fff; }
+  .toast-info    { background:#1d4ed8; color:#fff; }
+
+  /* ── Nav ── */
+  .nav-link { font-size:14px; font-weight:500; color:#374151; cursor:pointer; transition:color .2s; padding:6px 10px; border-radius:8px; }
+  .nav-link:hover { color:#166534; background:#f0fdf4; }
+
+  /* ── PDF Preview ── */
+  #pdfPreview { font-family:'DM Sans',sans-serif; }
+
+  /* ── Hero gradient ── */
+  .hero-bg { background:linear-gradient(135deg, #052e16 0%, #14532d 40%, #166534 70%, #15803d 100%); }
+
+  /* ── Pricing card ── */
+  .pricing-card { background:#fff; border:1.5px solid #e5e7eb; border-radius:20px; padding:32px; transition:all .25s; }
+  .pricing-card:hover { border-color:#16a34a; box-shadow:0 8px 30px rgba(22,163,74,.12); transform:translateY(-2px); }
+  .pricing-card.featured { border-color:#16a34a; background:linear-gradient(135deg,#f0fdf4,#dcfce7); }
+
+  /* ── Feature icon ── */
+  .feat-icon { width:44px; height:44px; border-radius:12px; background:#f0fdf4; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+
+  /* ── Scrollable modal body ── */
+  .modal-scroll { max-height:60vh; overflow-y:auto; padding-right:4px; }
+
+  /* ── Template btn ── */
+  .tpl-btn { padding:10px 16px; border:2px solid #e5e7eb; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; background:#fff; display:flex; align-items:center; gap:8px; }
+  .tpl-btn:hover { border-color:#16a34a; color:#166534; }
+  .tpl-btn.active { border-color:#16a34a; color:#166534; background:#f0fdf4; }
+  .tpl-btn.locked { opacity:.55; position:relative; }
+
+  /* ── Form label ── */
+  label { font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:5px; }
+
+  /* ── Sig canvas wrapper ── */
+  .sig-wrap { border:2px dashed #d1d5db; border-radius:12px; overflow:hidden; background:#fafafa; }
+  .sig-wrap:hover { border-color:#16a34a; }
+
+  /* ── Responsive ── */
+  @media(max-width:640px) {
+    .modal-box { padding:24px 18px; }
+    .hide-mobile { display:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toasts"></div>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const API = 'https://quotly-backend.onrender.com/api';
+const PLANS = { starter: 'Starter', pro: 'Pro ⭐', team: 'Équipe 👥' };
+
+// ── API Helper ────────────────────────────────────────────────────────────────
+async function api(path, method = 'GET', body = null) {
+  const token = localStorage.getItem('qToken');
+  const res = await fetch(API + path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : null,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`);
+  return json;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _setToasts = null;
+function toast(msg, type = 'success') {
+  if (!_setToasts) return;
+  const id = Date.now();
+  _setToasts(p => [...p, { id, msg, type }]);
+  setTimeout(() => _setToasts(p => p.filter(t => t.id !== id)), 4000);
+}
+
+function Toasts() {
+  const [toasts, setToasts] = useState([]);
+  useEffect(() => { _setToasts = setToasts; }, []);
+  return (
+    <div id="toasts">
+      {toasts.map(t => (
+        <div key={t.id} className={`toast toast-${t.type}`}>{t.msg}</div>
+      ))}
+    </div>
+  );
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+function Spinner({ dark }) {
+  return <span className={`spinner ${dark ? 'spinner-dark' : ''}`} />;
+}
+
+// ── Format ────────────────────────────────────────────────────────────────────
+function fmtMoney(n) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
+}
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ── PDF Generation ────────────────────────────────────────────────────────────
+function generatePDF(quote, user, sigDataUrl = null) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, M = 18;
+  let y = M;
+
+  const brand = '#166534';
+  const muted = '#6b7280';
+  const dark = '#111827';
+
+  // Header bar
+  doc.setFillColor(22, 101, 52);
+  doc.rect(0, 0, W, 42, 'F');
+
+  // Company name
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+  doc.text(quote.company_name || user?.name || 'Votre Entreprise', M, 18);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.text('Quotly — Devis professionnel', M, 26);
+
+  // Quote number top right
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.text(quote.number || 'DEV-001', W - M, 18, { align: 'right' });
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  doc.text('Devis', W - M, 24, { align: 'right' });
+
+  y = 54;
+
+  // Client block
+  doc.setDrawColor(229, 231, 235);
+  doc.setFillColor(249, 250, 251);
+  doc.roundedRect(M, y, W / 2 - M - 4, 36, 3, 3, 'FD');
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text('CLIENT', M + 6, y + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(dark);
+  doc.setFontSize(11); doc.text(quote.client_name || '—', M + 6, y + 16);
+  if (quote.client_address) {
+    doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+    const addrLines = doc.splitTextToSize(quote.client_address, W / 2 - M - 16);
+    doc.text(addrLines, M + 6, y + 22);
+  }
+
+  // Date block
+  const rx = W / 2 + 4;
+  doc.setFillColor(249, 250, 251);
+  doc.roundedRect(rx, y, W - rx - M, 36, 3, 3, 'FD');
+  doc.setTextColor(100, 100, 100); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text('INFORMATIONS', rx + 6, y + 8);
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(dark);
+  doc.setFontSize(9);
+  doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, rx + 6, y + 16);
+  doc.text(`Validité : ${quote.validity_days || 30} jours`, rx + 6, y + 23);
+  if (quote.client_email) doc.text(`Email : ${quote.client_email}`, rx + 6, y + 30);
+
+  y += 46;
+
+  // Items table header
+  doc.setFillColor(22, 101, 52);
+  doc.rect(M, y, W - 2 * M, 9, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  const colW = [W - 2 * M - 60, 18, 22, 20];
+  const colX = [M + 3, M + colW[0] + 3, M + colW[0] + colW[1] + 3, M + colW[0] + colW[1] + colW[2] + 3];
+  doc.text('DÉSIGNATION', colX[0], y + 6);
+  doc.text('QTÉ', colX[1], y + 6, { align: 'center' });
+  doc.text('PU HT', colX[2], y + 6, { align: 'right' });
+  doc.text('TOTAL HT', colX[3] + 17, y + 6, { align: 'right' });
+  y += 9;
+
+  // Items
+  const items = typeof quote.items === 'string' ? JSON.parse(quote.items) : (quote.items || []);
+  let ht = 0;
+  items.forEach((item, i) => {
+    const total = (item.qty || 0) * (item.unit_price || 0);
+    ht += total;
+    if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(M, y, W - 2 * M, 9, 'F'); }
+    doc.setTextColor(dark); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    const desc = doc.splitTextToSize(item.description || '', colW[0] - 4);
+    doc.text(desc[0], colX[0], y + 6);
+    doc.text(String(item.qty || 0), colX[1], y + 6, { align: 'center' });
+    doc.text(fmtMoney(item.unit_price), colX[2] + colW[2] - 3, y + 6, { align: 'right' });
+    doc.text(fmtMoney(total), colX[3] + 17, y + 6, { align: 'right' });
+    y += 9;
+  });
+
+  y += 6;
+  // Totals
+  const tva = (quote.tva_rate || 20) / 100;
+  const tvaAmt = ht * tva;
+  const ttc = ht + tvaAmt;
+
+  const totalX = W - M - 60;
+  const drawTotal = (label, val, bold, big) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(big ? 11 : 9);
+    doc.setTextColor(bold ? dark : muted);
+    doc.text(label, totalX, y);
+    doc.text(fmtMoney(val), W - M, y, { align: 'right' });
+    y += big ? 8 : 6;
+  };
+
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3); doc.line(totalX - 2, y - 2, W - M, y - 2);
+  drawTotal('Total HT', ht, false, false);
+  drawTotal(`TVA (${quote.tva_rate || 20}%)`, tvaAmt, false, false);
+  doc.setFillColor(22, 101, 52); doc.roundedRect(totalX - 4, y - 4, W - M - totalX + 4, 12, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL TTC', totalX, y + 4);
+  doc.text(fmtMoney(ttc), W - M, y + 4, { align: 'right' });
+  y += 16;
+
+  // Conditions
+  if (quote.conditions) {
+    y += 4;
+    doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3); doc.line(M, y, W - M, y); y += 6;
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(muted);
+    doc.text('CONDITIONS', M, y); y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(dark);
+    const condLines = doc.splitTextToSize(quote.conditions, W - 2 * M);
+    doc.text(condLines, M, y);
+    y += condLines.length * 4.5 + 4;
+  }
+
+  // Signature
+  if (sigDataUrl) {
+    y += 6;
+    doc.setDrawColor(229, 231, 235); doc.line(M, y, W - M, y); y += 6;
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(muted);
+    doc.text('SIGNATURE CLIENT', M, y); y += 4;
+    try { doc.addImage(sigDataUrl, 'PNG', M, y, 60, 24); } catch(e) {}
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(muted);
+    doc.text('Signé le ' + new Date().toLocaleDateString('fr-FR'), M, y + 27);
+    y += 32;
+  }
+
+  // Footer
+  doc.setDrawColor(229, 231, 235); doc.line(M, 285, W - M, 285);
+  doc.setFontSize(7); doc.setTextColor(muted); doc.setFont('helvetica', 'normal');
+  doc.text('Généré avec Quotly · quotly.fr', M, 290);
+  doc.text(`Page 1`, W - M, 290, { align: 'right' });
+
+  return doc;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH MODAL — avec 2FA OTP + gestion erreur mot de passe oublié
+// ═══════════════════════════════════════════════════════════════════════════════
+function AuthModal({ onClose, onLogin, defaultTab = 'login' }) {
+  const [tab, setTab] = useState(defaultTab);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ name:'', email:'', password:'', password2:'' });
+  // ── 2FA state ──
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+
+  // ── Initialiser depuis URL reset token si présent ──
+  const [forgot, setForgot] = useState(() => {
+    const rt = window.__resetToken;
+    const re = window.__resetEmail;
+    if (rt && re) {
+      window.__resetToken = null;
+      window.__resetEmail = null;
+      return { step: 2, email: re, password:'', password2:'', token: rt };
+    }
+    return { step: 1, email:'', password:'', password2:'', token:'' };
+  });
+
+  // Si on arrive avec un token de reset, aller directement sur forgot
+  useEffect(() => {
+    if (forgot.step === 2 && forgot.token) setTab('forgot');
+  }, []);
+
+  const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  // ── Étape 1 : email + password → reçoit require_otp: true ────────
+  async function handleLogin(e) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = await api('/auth/login', 'POST', { email: form.email, password: form.password });
+      if (data.require_otp) {
+        setOtpEmail(data.email || form.email);
+        setOtpStep(true);
+        toast(`Code envoyé à ${data.email || form.email} 📧`, 'info');
+      } else if (data.token) {
+        // Fallback: si le backend envoie directement le token (sans OTP)
+        localStorage.setItem('qToken', data.token);
+        localStorage.setItem('qUser', JSON.stringify(data.user));
+        onLogin(data.user);
+        toast('Bienvenue ' + data.user.name + ' ! 👋');
+        onClose();
+      }
+    } catch(err) { toast(err.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  // ── Étape 2 : vérification du code OTP ───────────────────────────
+  async function handleVerifyOtp(e) {
+    e.preventDefault();
+    if (!otpCode || otpCode.length !== 6) { toast('Code à 6 chiffres requis', 'error'); return; }
+    setLoading(true);
+    try {
+      const data = await api('/auth/verify-otp', 'POST', { email: otpEmail, otp: otpCode });
+      localStorage.setItem('qToken', data.token);
+      localStorage.setItem('qUser', JSON.stringify(data.user));
+      onLogin(data.user);
+      toast('Bienvenue ' + data.user.name + ' ! 👋');
+      onClose();
+    } catch(err) { toast(err.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    if (form.password !== form.password2) { toast('Les mots de passe ne correspondent pas', 'error'); return; }
+    if (form.password.length < 6) { toast('Mot de passe trop court (min. 6 car.)', 'error'); return; }
+    if (!form.name.trim()) { toast('Nom requis', 'error'); return; }
+    setLoading(true);
+    try {
+      const data = await api('/auth/register', 'POST', { name: form.name.trim(), email: form.email.toLowerCase().trim(), password: form.password });
+      localStorage.setItem('qToken', data.token);
+      localStorage.setItem('qUser', JSON.stringify(data.user));
+      onLogin(data.user);
+      toast('Compte créé avec succès 🎉 Bienvenue ' + data.user.name + ' !');
+      onClose();
+    } catch(err) { toast(err.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  // ── Mot de passe oublié : affiche l'erreur si compte introuvable ─
+  async function handleForgot(e) {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (forgot.step === 1) {
+        // Le backend renvoie 404 + "Aucun compte trouvé avec cet email." si l'email est inconnu
+        // api() lance une exception → on reste à l'étape 1 avec le message d'erreur affiché
+        await api('/auth/forgot-password', 'POST', { email: forgot.email });
+        // Si on arrive ici, l'email existe → on passe à l'étape 2
+        setForgot(p => ({ ...p, step: 2 }));
+        toast('Email de réinitialisation envoyé ✉️');
+      } else {
+        if (forgot.password !== forgot.password2) { toast('Mots de passe différents', 'error'); return; }
+        if (forgot.password.length < 6) { toast('Mot de passe trop court', 'error'); return; }
+        await api('/auth/reset-password', 'POST', { email: forgot.email, token: new URLSearchParams(window.location.search).get('reset_token') || forgot.token || '', password: forgot.password });
+        toast('Mot de passe réinitialisé ✅ Connectez-vous.');
+        setTab('login');
+        setOtpStep(false);
+        setForgot({ step:1, email:'', password:'', password2:'', token:'' });
+      }
+    } catch(err) {
+      // ✅ Affiche le message exact du backend (ex: "Aucun compte trouvé avec cet email.")
+      toast(err.message, 'error');
+    }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box scale-in" style={{ maxWidth: 440 }}>
+        {/* Header tabs */}
+        {tab !== 'forgot' && !otpStep && (
+          <div style={{ display:'flex', gap:4, marginBottom:28, background:'#f3f4f6', borderRadius:10, padding:4 }}>
+            {['login','register'].map(t => (
+              <button key={t} onClick={() => { setTab(t); setOtpStep(false); }} style={{
+                flex:1, padding:'8px 0', border:'none', borderRadius:8, cursor:'pointer',
+                fontFamily:'DM Sans,sans-serif', fontSize:14, fontWeight:600,
+                background: tab === t ? '#fff' : 'transparent',
+                color: tab === t ? '#166534' : '#6b7280',
+                boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
+                transition:'all .2s'
+              }}>
+                {t === 'login' ? 'Connexion' : 'Inscription'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* LOGIN — Étape 1 : email + password */}
+        {tab === 'login' && !otpStep && (
+          <form onSubmit={handleLogin}>
+            <h2 style={{ margin:'0 0 20px', fontSize:22, fontWeight:700 }}>Bon retour ! 👋</h2>
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div><label>Email</label><input className="inp" type="email" placeholder="vous@email.com" value={form.email} onChange={set('email')} required /></div>
+              <div><label>Mot de passe</label><input className="inp" type="password" placeholder="••••••••" value={form.password} onChange={set('password')} required /></div>
+              <button type="button" onClick={() => setTab('forgot')} style={{ textAlign:'left', fontSize:13, color:'#16a34a', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'DM Sans,sans-serif' }}>Mot de passe oublié ?</button>
+              <button className="btn-primary" type="submit" disabled={loading} style={{ marginTop:4, width:'100%' }}>
+                {loading ? <Spinner /> : 'Continuer →'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* LOGIN — Étape 2 : code OTP */}
+        {tab === 'login' && otpStep && (
+          <form onSubmit={handleVerifyOtp}>
+            <button type="button" onClick={() => setOtpStep(false)} className="btn-ghost" style={{ padding:'4px 0', marginBottom:16, color:'#6b7280' }}>← Retour</button>
+            <h2 style={{ margin:'0 0 8px', fontSize:22, fontWeight:700 }}>Vérification 🔐</h2>
+            <p style={{ margin:'0 0 20px', color:'#6b7280', fontSize:14 }}>
+              Un code à 6 chiffres a été envoyé à <strong>{otpEmail}</strong>. Valable 10 minutes.
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div>
+                <label>Code de vérification</label>
+                <input
+                  className="inp"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value.replace(/\D/g,''))}
+                  style={{ fontSize:22, letterSpacing:6, textAlign:'center', fontWeight:700 }}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#166534' }}>
+                📧 Vérifiez vos spams si vous ne recevez pas le code.
+              </div>
+              <button className="btn-primary" type="submit" disabled={loading || otpCode.length !== 6} style={{ width:'100%' }}>
+                {loading ? <Spinner /> : '✅ Valider le code'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* REGISTER */}
+        {tab === 'register' && (
+          <form onSubmit={handleRegister}>
+            <h2 style={{ margin:'0 0 4px', fontSize:22, fontWeight:700 }}>Créer un compte 🚀</h2>
+            <p style={{ margin:'0 0 20px', color:'#6b7280', fontSize:14 }}>Gratuit, sans carte bancaire</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div><label>Prénom & Nom</label><input className="inp" placeholder="Jean Dupont" value={form.name} onChange={set('name')} required /></div>
+              <div><label>Email</label><input className="inp" type="email" placeholder="vous@email.com" value={form.email} onChange={set('email')} required /></div>
+              <div><label>Mot de passe</label><input className="inp" type="password" placeholder="6 caractères minimum" value={form.password} onChange={set('password')} required /></div>
+              <div><label>Confirmer</label><input className="inp" type="password" placeholder="••••••••" value={form.password2} onChange={set('password2')} required /></div>
+              <button className="btn-primary" type="submit" disabled={loading} style={{ marginTop:4, width:'100%' }}>
+                {loading ? <Spinner /> : 'Créer mon compte gratuit'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* FORGOT */}
+        {tab === 'forgot' && (
+          <form onSubmit={handleForgot}>
+            <button type="button" onClick={() => setTab('login')} className="btn-ghost" style={{ padding:'4px 0', marginBottom:16, color:'#6b7280' }}>← Retour</button>
+            <h2 style={{ margin:'0 0 4px', fontSize:22, fontWeight:700 }}>{forgot.step === 1 ? 'Mot de passe oublié 🔑' : 'Nouveau mot de passe 🔒'}</h2>
+            <p style={{ margin:'0 0 20px', color:'#6b7280', fontSize:14 }}>{forgot.step === 1 ? 'Entrez votre email pour retrouver votre compte.' : 'Choisissez un nouveau mot de passe.'}</p>
+            {forgot.step === 1 ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                <div><label>Email du compte</label><input className="inp" type="email" placeholder="vous@email.com" value={forgot.email} onChange={e => setForgot(p => ({ ...p, email: e.target.value }))} required /></div>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width:'100%' }}>{loading ? <Spinner /> : 'Continuer →'}</button>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#1d4ed8' }}>
+                  🔑 Entrez le code reçu par email ou utilisez le lien de réinitialisation.
+                </div>
+                <div><label>Code de réinitialisation</label><input className="inp" placeholder="Collez le token du lien email" value={forgot.token} onChange={e => setForgot(p => ({ ...p, token: e.target.value }))} /></div>
+                <div><label>Nouveau mot de passe</label><input className="inp" type="password" placeholder="6 caractères minimum" value={forgot.password} onChange={e => setForgot(p => ({ ...p, password: e.target.value }))} required /></div>
+                <div><label>Confirmer</label><input className="inp" type="password" placeholder="••••••••" value={forgot.password2} onChange={e => setForgot(p => ({ ...p, password2: e.target.value }))} required /></div>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width:'100%' }}>{loading ? <Spinner /> : 'Réinitialiser le mot de passe'}</button>
+              </div>
+            )}
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UPGRADE MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function UpgradeModal({ onClose, user }) {
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box scale-in" style={{ maxWidth:480, textAlign:'center' }}>
+        <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
+        <h2 style={{ margin:'0 0 8px', fontSize:22, fontWeight:700 }}>Fonctionnalité Pro</h2>
+        <p style={{ color:'#6b7280', margin:'0 0 28px', fontSize:15 }}>
+          {!user ? 'Connectez-vous ou créez un compte pour accéder à cette fonctionnalité.'
+                 : 'Passez au plan Pro pour accéder à cette fonctionnalité.'}
+        </p>
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <a href="https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ" target="_blank" className="btn-primary" style={{ justifyContent:'center', textDecoration:'none' }}>
+            ⭐ Plan Pro — 29€/mois
+          </a>
+          <a href="https://www.paypal.com/ncp/payment/BXFT9S9669PWY" target="_blank" className="btn-secondary" style={{ justifyContent:'center', textDecoration:'none' }}>
+            👥 Plan Équipe — 69€/mois
+          </a>
+          <button className="btn-ghost" onClick={onClose} style={{ width:'100%', justifyContent:'center' }}>Pas maintenant</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+</script>
+
+<script type="text/babel">
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIGNATURE MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function SignatureModal({ onClose, onSign }) {
+  const canvasRef = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const [hasSig, setHasSig] = useState(false);
+  const lastPos = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }, []);
+
+  function getPos(e, canvas) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    setDrawing(true);
+    const canvas = canvasRef.current;
+    lastPos.current = getPos(e, canvas);
+  }
+
+  function draw(e) {
+    e.preventDefault();
+    if (!drawing) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const pos = getPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    lastPos.current = pos;
+    setHasSig(true);
+  }
+
+  function endDraw(e) { e.preventDefault(); setDrawing(false); }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSig(false);
+  }
+
+  function validate() {
+    if (!hasSig) { toast('Veuillez signer dans le cadre', 'error'); return; }
+    onSign(canvasRef.current.toDataURL('image/png'));
+    onClose();
+  }
+
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box scale-in">
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+          <h3 style={{ margin:0, fontSize:18, fontWeight:700 }}>✍️ Signature électronique</h3>
+          <button className="btn-ghost" onClick={onClose} style={{ padding:'4px 8px', fontSize:18 }}>×</button>
+        </div>
+        <p style={{ margin:'0 0 16px', color:'#6b7280', fontSize:14 }}>Signez dans le cadre ci-dessous. La signature sera intégrée au PDF.</p>
+        <div className="sig-wrap" style={{ height:180, marginBottom:16 }}>
+          <canvas
+            ref={canvasRef}
+            id="sigCanvas"
+            style={{ width:'100%', height:'100%', display:'block' }}
+            onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+            onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
+          />
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="btn-ghost" onClick={clear} style={{ flex:1 }}>🗑 Effacer</button>
+          <button className="btn-primary" onClick={validate} style={{ flex:2 }}>✅ Valider la signature</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMAIL MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function EmailModal({ onClose, quote, user, sigData }) {
+  const [to, setTo] = useState(quote?.client_email || '');
+  const [loading, setLoading] = useState(false);
+
+  async function send(e) {
+    e.preventDefault();
+    if (!to || !to.includes('@')) { toast('Email invalide', 'error'); return; }
+    setLoading(true);
+    try {
+      if (user && (user.plan === 'pro' || user.plan === 'team') && quote?.id) {
+        await api(`/quotes/${quote.id}/send`, 'POST', { email: to });
+        toast(`✅ Devis envoyé à ${to} avec PDF en pièce jointe !`);
+      } else if (user) {
+        toast('Envoi email disponible sur le plan Pro', 'info');
+      } else {
+        const doc = generatePDF(quote, user, sigData);
+        doc.save(`devis.pdf`);
+        toast('PDF téléchargé — connectez-vous pour envoyer par email', 'info');
+      }
+      onClose();
+    } catch(err) { toast(err.message, 'error'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box scale-in">
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+          <h3 style={{ margin:0, fontSize:18, fontWeight:700 }}>📤 Envoyer le devis</h3>
+          <button className="btn-ghost" onClick={onClose} style={{ padding:'4px 8px', fontSize:18 }}>×</button>
+        </div>
+        <form onSubmit={send} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div><label>Email du client *</label><input className="inp" type="email" placeholder="client@email.com" value={to} onChange={e => setTo(e.target.value)} required /></div>
+          <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:10, padding:'12px 14px', fontSize:13, color:'#166534' }}>
+            ⚡ {user?.plan === 'pro' || user?.plan === 'team' ? 'Le PDF sera joint automatiquement à l\'email.' : 'Plan Pro requis pour l\'envoi email. Le PDF sera téléchargé.'}
+          </div>
+          <button className="btn-primary" type="submit" disabled={loading} style={{ width:'100%' }}>
+            {loading ? <Spinner /> : '📨 Envoyer le devis'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATS MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function StatsModal({ onClose, user }) {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api('/stats').then(setStats).catch(e => toast(e.message,'error')).finally(() => setLoading(false));
+  }, []);
+
+  const statusLabel = { draft:'Brouillon', sent:'Envoyé', accepted:'Accepté', refused:'Refusé', expired:'Expiré' };
+  const statusCls   = { draft:'status-draft', sent:'status-sent', accepted:'status-accepted', refused:'status-refused', expired:'status-expired' };
+
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box modal-box-lg scale-in" style={{ maxWidth:700 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
+          <div>
+            <h3 style={{ margin:0, fontSize:20, fontWeight:700 }}>📊 Tableau de bord</h3>
+            {stats && <p style={{ margin:'4px 0 0', fontSize:13, color:'#6b7280' }}>Plan {PLANS[stats.plan?.current]} — {stats.plan?.monthLimit ? `${Math.max(0, stats.plan.monthLimit - stats.plan.quotesThisMonth)} devis restants ce mois` : 'Devis illimités'}</p>}
+          </div>
+          <button className="btn-ghost" onClick={onClose} style={{ padding:'4px 8px', fontSize:18 }}>×</button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign:'center', padding:40 }}><Spinner dark /></div>
+        ) : stats ? (
+          <>
+            {/* KPIs */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:24 }}>
+              {[
+                { label:'Devis total', value: stats.quotes.total, sub: `${stats.quotes.accepted} accepté(s)` },
+                { label:'CA réalisé', value: fmtMoney(stats.revenue.caRealise), sub: `${fmtMoney(stats.revenue.caPrevi)} prévisionnel` },
+                { label:'Taux acceptation', value: stats.quotes.acceptanceRate + '%', sub: `${stats.quotes.sent} en attente` },
+              ].map((k, i) => (
+                <div key={i} className="card" style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:24, fontWeight:700, color:'#166534', marginBottom:4 }}>{k.value}</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'#374151' }}>{k.label}</div>
+                  <div style={{ fontSize:12, color:'#9ca3af', marginTop:2 }}>{k.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Recent quotes table */}
+            <div className="card" style={{ padding:0, overflow:'hidden' }}>
+              <div style={{ padding:'16px 20px', borderBottom:'1px solid #f3f4f6', fontWeight:600, fontSize:15 }}>Devis récents</div>
+              <div className="table-wrap">
+                {!stats.recentQuotes.length ? (
+                  <div style={{ padding:32, textAlign:'center', color:'#9ca3af', fontSize:14 }}>Aucun devis pour l'instant — créez votre premier !</div>
+                ) : (
+                  <table>
+                    <thead><tr><th>Réf.</th><th>Client</th><th>Montant TTC</th><th>Statut</th><th>Date</th></tr></thead>
+                    <tbody>
+                      {stats.recentQuotes.map(q => (
+                        <tr key={q.id}>
+                          <td><strong>{q.number}</strong></td>
+                          <td>{q.client_name}</td>
+                          <td>{fmtMoney(q.totalTTC)}</td>
+                          <td><span className={`badge ${statusCls[q.status] || 'status-draft'}`}>{statusLabel[q.status] || q.status}</span></td>
+                          <td style={{ color:'#9ca3af' }}>{fmtDate(q.created_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </>
+        ) : <p style={{ textAlign:'center', color:'#9ca3af' }}>Impossible de charger les données.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// QUOTE FORM
+// ═══════════════════════════════════════════════════════════════════════════════
+const TEMPLATES = [
+  { id:'classique', label:'Classique', icon:'📄', pro:false },
+  { id:'moderne',   label:'Moderne',   icon:'✨', pro:true },
+  { id:'artisan',   label:'Artisan',   icon:'🔨', pro:true },
+  { id:'minimal',   label:'Minimal',   icon:'⬜', pro:true },
+];
+
+function QuoteForm({ user, onShowUpgrade, onShowAuth }) {
+  const [template, setTemplate] = useState('classique');
+  const [sigData, setSigData] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [savedQuote, setSavedQuote] = useState(null);
+  const [modal, setModal] = useState(null); // 'sig' | 'email' | 'stats'
+  const [quoteNum, setQuoteNum] = useState('');
+  const [items, setItems] = useState([{ description:'', qty:1, unit_price:0 }]);
+  const [form, setForm] = useState({ company:'', client_name:'', client_address:'', client_email:'', tva_rate:20, validity_days:30, conditions:'' });
+  const [preview, setPreview] = useState({ ht:0, tva:0, ttc:0 });
+  // ✅ Quota affiché depuis le backend
+  const [quota, setQuota] = useState(null);
+
+  // Recalculate preview
+  useEffect(() => {
+    const ht = items.reduce((s, i) => s + (parseFloat(i.qty)||0) * (parseFloat(i.unit_price)||0), 0);
+    const tva = ht * (form.tva_rate / 100);
+    setPreview({ ht, tva, ttc: ht + tva });
+  }, [items, form.tva_rate]);
+
+  // ✅ Charger le quota depuis le backend au montage si connecté
+  useEffect(() => {
+    if (user) {
+      api('/quotes/quota/status').then(data => setQuota(data)).catch(() => {});
+    }
+  }, [user]);
+
+  const setF = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  function addLine() { setItems(p => [...p, { description:'', qty:1, unit_price:0 }]); }
+  function removeLine(i) { if (items.length > 1) setItems(p => p.filter((_,j) => j !== i)); }
+  function setItem(i, k, v) { setItems(p => p.map((it, j) => j === i ? { ...it, [k]: v } : it)); }
+
+  const PRO_TEMPLATES_IDS = ['moderne', 'artisan', 'minimal', 'bold', 'blue_corp', 'tech',
+    'nature', 'luxe', 'sante', 'immobilier', 'event', 'restaurant', 'auto', 'beaute',
+    'juridique', 'archi', 'photo', 'transport', 'formation', 'nettoyage', 'it', 'mode'];
+
+  function selectTemplate(id) {
+    // ✅ Autoriser la prévisualisation, bloquer uniquement au téléchargement
+    if (PRO_TEMPLATES_IDS.includes(id) && (!user || user.plan === 'starter')) {
+      setTemplate(id);
+      toast('Aperçu activé — plan Pro requis pour télécharger ce template', 'info');
+      return;
+    }
+    setTemplate(id);
+  }
+
+  function isPro() { return user && (user.plan === 'pro' || user.plan === 'team'); }
+
+  async function saveQuote() {
+    if (!form.company || !form.client_name || items.every(i => !i.description)) {
+      toast('Remplissez entreprise, client et au moins une prestation', 'error'); return null;
+    }
+    // ✅ Auth obligatoire pour sauvegarder
+    if (!user) {
+      toast('Connectez-vous pour sauvegarder votre devis', 'info');
+      onShowAuth();
+      return null;
+    }
+    try {
+      const data = await api('/quotes', 'POST', {
+        company_name: form.company, client_name: form.client_name,
+        client_address: form.client_address, client_email: form.client_email,
+        items, tva_rate: parseFloat(form.tva_rate), validity_days: parseInt(form.validity_days),
+        conditions: form.conditions, template_id: template,
+      });
+      // ✅ Rafraîchir le quota après création d'un devis
+      api('/quotes/quota/status').then(d => setQuota(d)).catch(() => {});
+      return data.quote;
+    } catch(e) {
+      // ✅ Gère quota atteint (upgrade:true) et template payant
+      if (e.message?.includes('upgrade') || e.message?.includes('Limite') || e.message?.includes('réservé') || e.message?.includes('payante')) {
+        onShowUpgrade();
+      }
+      toast(e.message, 'error');
+      return null;
+    }
+  }
+
+  async function handleDownload() {
+    if (!form.company && !form.client_name) { toast('Remplissez au moins votre entreprise et le client', 'error'); return; }
+    setSaving(true);
+
+    // ✅ Auth obligatoire
+    if (!user) {
+      toast('Connectez-vous pour télécharger le PDF', 'info');
+      onShowAuth();
+      setSaving(false);
+      return;
+    }
+
+    // ✅ Bloquer template payant côté frontend (double vérif backend)
+    if (PRO_TEMPLATES_IDS.includes(template) && user.plan === 'starter') {
+      toast('Ce template est réservé aux offres payantes.', 'error');
+      onShowUpgrade();
+      setSaving(false);
+      return;
+    }
+
+    try {
+      // Sauvegarder d'abord si pas encore fait
+      let quote = savedQuote;
+      if (!quote) {
+        const saved = await saveQuote();
+        if (!saved) { setSaving(false); return; }
+        quote = saved;
+        setSavedQuote(saved);
+        setQuoteNum(saved.number);
+      }
+
+      // ✅ Téléchargement via backend (qui vérifie aussi template côté serveur)
+      const token = localStorage.getItem('qToken');
+      const res = await fetch(`${API}/quotes/${quote.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        if (json.upgrade) { onShowUpgrade(); setSaving(false); return; }
+        toast(json.error || 'Erreur téléchargement PDF', 'error');
+        setSaving(false);
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (quote.number || 'devis') + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('PDF téléchargé ✅');
+    } catch(e) {
+      toast(e.message, 'error');
+    }
+    setSaving(false);
+  }
+
+  async function handleSig() {
+    if (!user) { onShowAuth(); return; }
+    if (!isPro()) {
+      // ✅ Vérifier le quota de signatures via backend (données fraîches)
+      try {
+        const quotaData = await api('/quotes/quota/status');
+        setQuota(quotaData); // mettre à jour l'affichage
+        if (quotaData.signatures.remaining !== null && quotaData.signatures.remaining <= 0) {
+          toast(`Limite de ${quotaData.signatures.limit} signatures atteinte sur le plan gratuit`, 'error');
+          onShowUpgrade();
+          return;
+        }
+        if (quotaData.signatures.remaining !== null) {
+          toast(`${quotaData.signatures.remaining} signature(s) restante(s) sur votre plan gratuit`, 'info');
+        }
+      } catch(_) {}
+    }
+    setModal('sig');
+  }
+
+  function handleEmail() {
+    if (!user) { onShowAuth(); return; }
+    if (!isPro()) { onShowUpgrade(); return; }
+    setModal('email');
+  }
+
+  function handleStats() {
+    if (!user) { onShowAuth(); return; }
+    if (!isPro()) { onShowUpgrade(); return; }
+    setModal('stats');
+  }
+
+  async function handleConvert() {
+    if (!isPro()) { onShowUpgrade(); return; }
+    if (!savedQuote) { toast('Téléchargez d\'abord le devis pour le sauvegarder', 'info'); return; }
+    try {
+      const data = await api(`/invoices/from-quote/${savedQuote.id}`, 'POST');
+      toast(`✅ Facture ${data.invoice.number} créée !`);
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  const tpl = TEMPLATES.find(t => t.id === template);
+
+  return (
+    <div style={{ maxWidth:1100, margin:'0 auto', padding:'32px 20px' }}>
+
+      {/* ✅ Bandeau quota plan gratuit — données réelles du backend */}
+      {user && quota && quota.plan === 'starter' && (
+        <div style={{ marginBottom:20, background: quota.quotes.remaining === 0 ? '#fef2f2' : '#fffbeb', border: `1.5px solid ${quota.quotes.remaining === 0 ? '#fca5a5' : '#fde68a'}`, borderRadius:12, padding:'12px 18px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
+          <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
+            <span style={{ fontSize:14, color: quota.quotes.remaining === 0 ? '#dc2626' : '#92400e', fontWeight:500 }}>
+              📄 Devis ce mois : <strong>{quota.quotes.used} / {quota.quotes.limit}</strong>
+              {quota.quotes.remaining > 0 ? ` — ${quota.quotes.remaining} restant(s)` : ' — Limite atteinte'}
+            </span>
+            <span style={{ fontSize:14, color: quota.signatures.remaining === 0 ? '#dc2626' : '#92400e', fontWeight:500 }}>
+              ✍️ Signatures : <strong>{quota.signatures.used} / {quota.signatures.limit}</strong>
+              {quota.signatures.remaining > 0 ? ` — ${quota.signatures.remaining} restante(s)` : ' — Limite atteinte'}
+            </span>
+          </div>
+          {(quota.quotes.remaining === 0 || quota.signatures.remaining === 0) && (
+            <button className="btn-primary" onClick={onShowUpgrade} style={{ fontSize:13, padding:'7px 16px' }}>⭐ Passer au Pro</button>
+          )}
+        </div>
+      )}
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:28, alignItems:'start' }}>
+
+        {/* LEFT: Form */}
+        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+
+          {/* Template picker */}
+          <div className="card">
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:14, display:'flex', alignItems:'center', gap:8 }}>
+              🎨 Template
+              <span className={`badge ${isPro() ? 'status-accepted' : 'status-draft'}`} style={{ fontSize:11 }}>
+                {isPro() ? '20+ disponibles' : '1 gratuit'}
+              </span>
+            </div>
+            <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+              {TEMPLATES.map(t => (
+                <button key={t.id} onClick={() => selectTemplate(t.id)}
+                  className={`tpl-btn ${template === t.id ? 'active' : ''} ${t.pro && !isPro() ? 'locked' : ''}`}>
+                  {t.icon} {t.label} {t.pro && !isPro() && '🔒'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Company + Client */}
+          <div className="card">
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>📋 Informations</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label>Votre entreprise *</label>
+                <input className="inp" placeholder="Mon Entreprise SARL" value={form.company} onChange={setF('company')} />
+              </div>
+              <div>
+                <label>Nom du client *</label>
+                <input className="inp" placeholder="Jean Martin" value={form.client_name} onChange={setF('client_name')} />
+              </div>
+              <div>
+                <label>Email client</label>
+                <input className="inp" type="email" placeholder="client@mail.com" value={form.client_email} onChange={setF('client_email')} />
+              </div>
+              <div style={{ gridColumn:'1/-1' }}>
+                <label>Adresse client</label>
+                <input className="inp" placeholder="12 rue de la Paix, 75001 Paris" value={form.client_address} onChange={setF('client_address')} />
+              </div>
+              <div>
+                <label>TVA</label>
+                <select className="sel" value={form.tva_rate} onChange={setF('tva_rate')}>
+                  <option value={20}>20% — Taux normal</option>
+                  <option value={10}>10% — Taux intermédiaire</option>
+                  <option value={5.5}>5.5% — Taux réduit</option>
+                  <option value={0}>0% — Exonéré</option>
+                </select>
+              </div>
+              <div>
+                <label>Validité</label>
+                <select className="sel" value={form.validity_days} onChange={setF('validity_days')}>
+                  <option value={15}>15 jours</option>
+                  <option value={30}>30 jours</option>
+                  <option value={60}>60 jours</option>
+                  <option value={90}>90 jours</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="card">
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>📦 Prestations *</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {items.map((item, i) => (
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 70px 100px 36px', gap:8, alignItems:'center' }}>
+                  <input className="inp" placeholder={`Prestation ${i+1}`} value={item.description} onChange={e => setItem(i,'description',e.target.value)} />
+                  <input className="inp" type="number" placeholder="Qté" min="0" step="0.1" value={item.qty} onChange={e => setItem(i,'qty',e.target.value)} style={{ textAlign:'center' }} />
+                  <input className="inp" type="number" placeholder="P.U. HT" min="0" step="0.01" value={item.unit_price} onChange={e => setItem(i,'unit_price',e.target.value)} />
+                  <button onClick={() => removeLine(i)} style={{ width:36, height:40, border:'1.5px solid #fca5a5', borderRadius:8, background:'#fff', color:'#dc2626', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+                </div>
+              ))}
+              <button className="btn-ghost" onClick={addLine} style={{ justifyContent:'center', border:'1.5px dashed #d1d5db', borderRadius:10, marginTop:4 }}>+ Ajouter une ligne</button>
+            </div>
+          </div>
+
+          {/* Conditions */}
+          <div className="card">
+            <label>Conditions / Mentions</label>
+            <textarea className="ta" placeholder="Ex : Acompte de 30% à la commande. Délai d'exécution : 5 jours ouvrés." value={form.conditions} onChange={setF('conditions')} />
+          </div>
+
+          {/* Actions */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <button className="btn-primary" onClick={handleDownload} disabled={saving} style={{ gridColumn:'1/-1', padding:'14px' }}>
+              {saving ? <><Spinner /> Génération…</> : '⬇ Télécharger le devis PDF'}
+            </button>
+            <button className="btn-secondary" onClick={handleEmail}>📨 Envoyer par email</button>
+            <button className="btn-secondary" onClick={handleSig}>✍️ Signer le devis {!isPro() && '🔒'}</button>
+            <button className="btn-secondary" onClick={handleConvert}>🔄 Convertir en facture {!isPro() && '🔒'}</button>
+            <button className="btn-secondary" onClick={handleStats}>📊 Statistiques {!isPro() && '🔒'}</button>
+          </div>
+
+          {sigData && (
+            <div className="card" style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:12, background:'#f0fdf4', border:'1.5px solid #bbf7d0' }}>
+              <span style={{ fontSize:20 }}>✅</span>
+              <div>
+                <div style={{ fontWeight:600, color:'#166534', fontSize:14 }}>Signature enregistrée</div>
+                <div style={{ fontSize:12, color:'#15803d' }}>Elle sera incluse dans le PDF téléchargé.</div>
+              </div>
+              <button className="btn-ghost" onClick={() => setSigData(null)} style={{ marginLeft:'auto', fontSize:12, color:'#dc2626' }}>Supprimer</button>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: Preview */}
+        <div style={{ position:'sticky', top:20 }}>
+          <div className="card" style={{ padding:0, overflow:'hidden' }}>
+            <div style={{ background:'#166534', padding:'16px 20px', color:'#fff' }}>
+              <div style={{ fontWeight:700, fontSize:14 }}>Aperçu du devis</div>
+              <div style={{ fontSize:12, opacity:.75, marginTop:2 }}>Template : {tpl?.label}</div>
+            </div>
+            <div id="pdfPreview" style={{ padding:20 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:16, color:'#166534' }}>{form.company || 'Votre entreprise'}</div>
+                  <div style={{ fontSize:12, color:'#9ca3af' }}>Devis professionnel</div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ fontWeight:700, fontSize:14 }}>{quoteNum || 'DEV-—'}</div>
+                  <div style={{ fontSize:12, color:'#9ca3af' }}>{new Date().toLocaleDateString('fr-FR')}</div>
+                </div>
+              </div>
+
+              <div style={{ background:'#f9fafb', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13 }}>
+                <div style={{ fontWeight:600, color:'#6b7280', fontSize:11, marginBottom:4, letterSpacing:'.05em' }}>CLIENT</div>
+                <div style={{ fontWeight:600 }}>{form.client_name || '—'}</div>
+                {form.client_address && <div style={{ color:'#6b7280', fontSize:12, marginTop:2 }}>{form.client_address}</div>}
+              </div>
+
+              <table style={{ width:'100%', marginBottom:16, fontSize:13 }}>
+                <thead>
+                  <tr style={{ background:'#166534', color:'#fff' }}>
+                    <th style={{ padding:'8px 10px', textAlign:'left', borderRadius:'6px 0 0 6px', fontWeight:600, fontSize:11 }}>DÉSIGNATION</th>
+                    <th style={{ padding:'8px 6px', textAlign:'center', fontWeight:600, fontSize:11 }}>QTÉ</th>
+                    <th style={{ padding:'8px 10px', textAlign:'right', borderRadius:'0 6px 6px 0', fontWeight:600, fontSize:11 }}>TOTAL HT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.filter(i => i.description).map((item, i) => (
+                    <tr key={i} style={{ background: i%2===0 ? '#fff' : '#f9fafb' }}>
+                      <td style={{ padding:'7px 10px', color:'#374151' }}>{item.description}</td>
+                      <td style={{ padding:'7px 6px', textAlign:'center', color:'#6b7280' }}>{item.qty}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'right', fontWeight:500 }}>{fmtMoney((item.qty||0)*(item.unit_price||0))}</td>
+                    </tr>
+                  ))}
+                  {!items.some(i => i.description) && (
+                    <tr><td colSpan={3} style={{ padding:'16px 10px', textAlign:'center', color:'#d1d5db', fontSize:13 }}>Aucune prestation</td></tr>
+                  )}
+                </tbody>
+              </table>
+
+              <div style={{ borderTop:'1px solid #e5e7eb', paddingTop:12 }}>
+                {[
+                  { label:`Total HT`, val: fmtMoney(preview.ht), bold:false },
+                  { label:`TVA (${form.tva_rate}%)`, val: fmtMoney(preview.tva), bold:false },
+                ].map((r,i) => (
+                  <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#6b7280', marginBottom:4 }}>
+                    <span>{r.label}</span><span>{r.val}</span>
+                  </div>
+                ))}
+                <div style={{ display:'flex', justifyContent:'space-between', background:'#166534', color:'#fff', borderRadius:8, padding:'10px 12px', marginTop:8, fontWeight:700, fontSize:15 }}>
+                  <span>TOTAL TTC</span><span>{fmtMoney(preview.ttc)}</span>
+                </div>
+              </div>
+
+              {sigData && (
+                <div style={{ marginTop:14, paddingTop:12, borderTop:'1px solid #e5e7eb' }}>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4 }}>SIGNATURE CLIENT</div>
+                  <img src={sigData} alt="signature" style={{ height:50, border:'1px solid #e5e7eb', borderRadius:6, background:'#fafafa' }} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {modal === 'sig' && <SignatureModal onClose={() => setModal(null)} onSign={data => { setSigData(data); toast('Signature enregistrée ✅'); }} />}
+      {modal === 'email' && <EmailModal onClose={() => setModal(null)} quote={savedQuote || { ...form, items }} user={user} sigData={sigData} />}
+      {modal === 'stats' && <StatsModal onClose={() => setModal(null)} user={user} />}
+    </div>
+  );
+}
+</script>
+
+<script type="text/babel">
+// ═══════════════════════════════════════════════════════════════════════════════
+// LANDING PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+function Landing({ onShowAuth, onGoApp, user }) {
+  const features = [
+    { icon:'⚡', title:'Génération instantanée', desc:'Un devis prêt en 60 secondes, formaté et chiffré avec vos coordonnées.' },
+    { icon:'🎨', title:'Templates sur mesure', desc:'20+ modèles adaptés à votre métier. Personnalisez couleurs et polices.' },
+    { icon:'📤', title:'Envoi en 1 clic', desc:'Partagez votre PDF par email directement depuis Quotly.' },
+    { icon:'✍️', title:'Signature électronique', desc:'Vos clients signent sur mobile ou desktop. Validité juridique garantie.' },
+    { icon:'🔄', title:'Conversion en facture', desc:'Transformez un devis accepté en facture en un seul clic.' },
+    { icon:'📊', title:'Suivi & statistiques', desc:'Taux d\'acceptation, CA prévisionnel en un coup d\'œil.' },
+  ];
+  const testimonials = [
+    { name:'Jean-Marc Lebrun', role:'Électricien — Lyon', text:'Avant Quotly, je passais 45 minutes sur chaque devis. Maintenant c\'est 3 minutes. Mes clients sont impressionnés.', stars:5 },
+    { name:'Sophie Fournier', role:'Architecte d\'intérieur — Paris', text:'La signature électronique a tout changé. Mes clients signent le soir même depuis leur téléphone.', stars:5 },
+    { name:'Alexis Tremblay', role:'Gérant PME bâtiment — Bordeaux', text:'On gère 3 techniciens avec le plan Équipe. Les devis sont homogènes, la marque cohérente.', stars:5 },
+  ];
+  const faqs = [
+    { q:'Faut-il s\'inscrire pour générer un devis ?', a:'Non. Vous pouvez générer et télécharger un devis PDF immédiatement, sans compte. Un compte est nécessaire pour sauvegarder et accéder aux fonctionnalités avancées.' },
+    { q:'Le PDF est-il légalement valable ?', a:'Le PDF contient toutes les mentions légales obligatoires : identification des parties, description des prestations, prix HT/TTC, TVA, durée de validité.' },
+    { q:'Puis-je résilier à tout moment ?', a:'Oui, sans engagement et sans frais. Résiliation en un clic depuis votre espace client.' },
+    { q:'Quotly fonctionne-t-il sur mobile ?', a:'Oui, entièrement responsive. Vous pouvez créer et envoyer des devis depuis votre smartphone.' },
+  ];
+  const [openFaq, setOpenFaq] = useState(null);
+
+  return (
+    <div>
+      {/* HERO */}
+      <section className="hero-bg grain" style={{ position:'relative', padding:'100px 24px 80px', textAlign:'center', overflow:'hidden' }}>
+        <div style={{ position:'relative', zIndex:1, maxWidth:720, margin:'0 auto' }}>
+          <div className="fade-up" style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.2)', borderRadius:999, padding:'6px 16px', fontSize:13, color:'rgba(255,255,255,.9)', marginBottom:28, backdropFilter:'blur(4px)' }}>
+            ✦ Nouveau — Devis pro en 60 secondes
+          </div>
+          <h1 className="fade-up delay-1" style={{ margin:'0 0 20px', fontSize:'clamp(36px,6vw,64px)', fontFamily:'Playfair Display,serif', fontWeight:700, color:'#fff', lineHeight:1.1 }}>
+            Fini les devis<br /><em>faits à la main</em>
+          </h1>
+          <p className="fade-up delay-2" style={{ margin:'0 0 36px', fontSize:18, color:'rgba(255,255,255,.8)', lineHeight:1.6, maxWidth:520, marginLeft:'auto', marginRight:'auto' }}>
+            Quotly génère des devis professionnels en quelques clics. Pour les artisans, PME et freelances qui veulent gagner du temps.
+          </p>
+          <div className="fade-up delay-3" style={{ display:'flex', gap:14, justifyContent:'center', flexWrap:'wrap' }}>
+            <button onClick={() => { if (!user) { onShowAuth('register'); } else { onGoApp(); } }} style={{ padding:'14px 28px', background:'#fff', color:'#166534', border:'none', borderRadius:12, fontFamily:'DM Sans,sans-serif', fontSize:15, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 20px rgba(0,0,0,.2)', transition:'transform .2s' }}
+              onMouseEnter={e => e.target.style.transform='translateY(-2px)'} onMouseLeave={e => e.target.style.transform='none'}>
+              Créer mon premier devis →
+            </button>
+            <button onClick={() => document.getElementById('features')?.scrollIntoView({behavior:'smooth'})} style={{ padding:'14px 28px', background:'transparent', color:'#fff', border:'1.5px solid rgba(255,255,255,.35)', borderRadius:12, fontFamily:'DM Sans,sans-serif', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+              ▶ Voir les fonctionnalités
+            </button>
+          </div>
+
+          <div className="fade-up delay-4" style={{ display:'flex', gap:32, justifyContent:'center', marginTop:52, flexWrap:'wrap' }}>
+            {[['2 400+','Professionnels inscrits'],['47k','Devis générés'],['4.9/5','Note moyenne']].map(([v,l]) => (
+              <div key={l} style={{ textAlign:'center' }}>
+                <div style={{ fontSize:28, fontWeight:700, color:'#fff', fontFamily:'Playfair Display,serif' }}>{v}</div>
+                <div style={{ fontSize:13, color:'rgba(255,255,255,.6)', marginTop:2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" style={{ padding:'80px 24px', maxWidth:1100, margin:'0 auto' }}>
+        <div style={{ textAlign:'center', marginBottom:56 }}>
+          <div className="badge status-accepted" style={{ marginBottom:14 }}>Fonctionnalités</div>
+          <h2 style={{ margin:0, fontSize:'clamp(28px,4vw,42px)', fontFamily:'Playfair Display,serif', fontWeight:700 }}>
+            Tout ce qu'il faut, <em>rien de superflu</em>
+          </h2>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:24 }}>
+          {features.map((f, i) => (
+            <div key={i} className="card fade-up" style={{ display:'flex', gap:16, animationDelay:`${i*.08}s` }}>
+              <div className="feat-icon">{f.icon}</div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>{f.title}</div>
+                <div style={{ fontSize:14, color:'#6b7280', lineHeight:1.6 }}>{f.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" style={{ padding:'80px 24px', background:'#f9fafb' }}>
+        <div style={{ maxWidth:960, margin:'0 auto' }}>
+          <div style={{ textAlign:'center', marginBottom:56 }}>
+            <div className="badge status-accepted" style={{ marginBottom:14 }}>Tarifs</div>
+            <h2 style={{ margin:0, fontSize:'clamp(28px,4vw,42px)', fontFamily:'Playfair Display,serif', fontWeight:700 }}>
+              Simple et <em>transparent</em>
+            </h2>
+            <p style={{ color:'#6b7280', marginTop:12, fontSize:16 }}>Pas de frais cachés. Résiliable à tout moment.</p>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:24 }}>
+            {[
+              { name:'Starter', price:'0€', period:'pour toujours', features:['5 devis / mois','1 template inclus','Export PDF','Support email'], cta:'Commencer gratuitement', ctaFn: onShowAuth, featured:false, payUrl:null },
+              { name:'Pro', price:'29€', period:'par mois, sans engagement', features:['Devis illimités','20+ templates','Signature électronique','Conversion en facture','Envoi email intégré','Support prioritaire'], cta:'Sélectionner', featured:true, payUrl:'https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ' },
+              { name:'Équipe', price:'69€', period:'par mois · jusqu\'à 5 utilisateurs', features:['Tout du plan Pro','5 comptes utilisateurs','Tableau de bord équipe','Intégrations (Zapier, API)','Onboarding dédié'], cta:'Sélectionner', featured:false, payUrl:'https://www.paypal.com/ncp/payment/BXFT9S9669PWY' },
+            ].map((plan, i) => (
+              <div key={i} className={`pricing-card ${plan.featured ? 'featured' : ''}`}>
+                {plan.featured && <div className="badge status-accepted" style={{ marginBottom:12 }}>⭐ Populaire</div>}
+                <div style={{ fontWeight:700, fontSize:20, marginBottom:4 }}>{plan.name}</div>
+                <div style={{ fontSize:34, fontWeight:800, color:'#166534', fontFamily:'Playfair Display,serif' }}>{plan.price}</div>
+                <div style={{ fontSize:13, color:'#9ca3af', marginBottom:24 }}>{plan.period}</div>
+                <ul style={{ listStyle:'none', padding:0, margin:'0 0 28px', display:'flex', flexDirection:'column', gap:10 }}>
+                  {plan.features.map((f,j) => (
+                    <li key={j} style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, color:'#374151' }}>
+                      <span style={{ color:'#16a34a', fontWeight:700, flexShrink:0 }}>✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+                {plan.payUrl ? (
+                  <a href={plan.payUrl} target="_blank" className="btn-primary" style={{ width:'100%', textDecoration:'none', justifyContent:'center', boxSizing:'border-box' }}>{plan.cta}</a>
+                ) : (
+                  <button className="btn-primary" onClick={plan.ctaFn} style={{ width:'100%' }}>{plan.cta}</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section style={{ padding:'80px 24px', maxWidth:1100, margin:'0 auto' }}>
+        <div style={{ textAlign:'center', marginBottom:56 }}>
+          <h2 style={{ margin:0, fontSize:'clamp(28px,4vw,42px)', fontFamily:'Playfair Display,serif', fontWeight:700 }}>
+            Ce que disent nos <em>utilisateurs</em>
+          </h2>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))', gap:24 }}>
+          {testimonials.map((t, i) => (
+            <div key={i} className="card">
+              <div style={{ color:'#fbbf24', fontSize:16, marginBottom:14 }}>{'★'.repeat(t.stars)}</div>
+              <p style={{ margin:'0 0 18px', fontSize:15, color:'#374151', lineHeight:1.65, fontStyle:'italic' }}>"{t.text}"</p>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:'#166534', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13, flexShrink:0 }}>{t.name.split(' ').map(n=>n[0]).join('')}</div>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14 }}>{t.name}</div>
+                  <div style={{ fontSize:12, color:'#9ca3af' }}>{t.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" style={{ padding:'80px 24px', background:'#f9fafb' }}>
+        <div style={{ maxWidth:700, margin:'0 auto' }}>
+          <div style={{ textAlign:'center', marginBottom:48 }}>
+            <h2 style={{ margin:0, fontSize:'clamp(28px,4vw,42px)', fontFamily:'Playfair Display,serif', fontWeight:700 }}>
+              Questions <em>fréquentes</em>
+            </h2>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {faqs.map((f, i) => (
+              <div key={i} className="card" style={{ cursor:'pointer', userSelect:'none' }} onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontWeight:600, fontSize:15 }}>
+                  {f.q}
+                  <span style={{ color:'#16a34a', fontSize:20, marginLeft:12, transform: openFaq===i ? 'rotate(45deg)':'none', transition:'transform .2s' }}>+</span>
+                </div>
+                {openFaq === i && <p style={{ margin:'12px 0 0', fontSize:14, color:'#6b7280', lineHeight:1.7 }}>{f.a}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ padding:'80px 24px', textAlign:'center', background:'#052e16' }}>
+        <h2 style={{ margin:'0 0 12px', fontSize:'clamp(28px,4vw,40px)', fontFamily:'Playfair Display,serif', color:'#fff', fontWeight:700 }}>
+          Prêt à gagner <em>2h par semaine</em> ?
+        </h2>
+        <p style={{ color:'rgba(255,255,255,.7)', margin:'0 0 32px', fontSize:16 }}>Rejoignez 2 400 professionnels qui ont digitalisé leurs devis avec Quotly.</p>
+        <button onClick={() => { if (!user) { onShowAuth('register'); } else { onGoApp(); } }} style={{ padding:'16px 36px', background:'#fff', color:'#166534', border:'none', borderRadius:14, fontFamily:'DM Sans,sans-serif', fontSize:16, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 20px rgba(0,0,0,.25)' }}>
+          Créer mon premier devis →
+        </button>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ background:'#111827', padding:'48px 24px 32px', color:'rgba(255,255,255,.6)', fontSize:14 }}>
+        <div style={{ maxWidth:1100, margin:'0 auto' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:40, marginBottom:40, flexWrap:'wrap' }}>
+            <div>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:22, color:'#fff', marginBottom:10, fontWeight:700 }}>Quotly</div>
+              <p style={{ margin:0, lineHeight:1.7, fontSize:13 }}>Devis pro en 60 secondes. Pour les artisans, PME et freelances.</p>
+            </div>
+            <div>
+              <div style={{ color:'#fff', fontWeight:600, marginBottom:14 }}>Produit</div>
+              {['Fonctionnalités','Tarifs','Démo','FAQ'].map(l => <div key={l} style={{ marginBottom:8 }}><a href={`#${l.toLowerCase()}`} style={{ color:'rgba(255,255,255,.6)', textDecoration:'none' }}>{l}</a></div>)}
+            </div>
+            <div>
+              <div style={{ color:'#fff', fontWeight:600, marginBottom:14 }}>Légal</div>
+              {['Mentions légales','CGU','Confidentialité','Cookies'].map(l => <div key={l} style={{ marginBottom:8 }}><span style={{ cursor:'pointer' }}>{l}</span></div>)}
+            </div>
+            <div>
+              <div style={{ color:'#fff', fontWeight:600, marginBottom:14 }}>Contact</div>
+              <div style={{ marginBottom:8 }}><a href="mailto:contact@quotly.fr" style={{ color:'rgba(255,255,255,.6)', textDecoration:'none' }}>contact@quotly.fr</a></div>
+              <div>Support</div>
+            </div>
+          </div>
+          <div style={{ borderTop:'1px solid rgba(255,255,255,.1)', paddingTop:24, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
+            <div>© 2025 Quotly. Fait avec ♥ en France.</div>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <span style={{ background:'rgba(255,255,255,.1)', padding:'4px 10px', borderRadius:6, fontSize:12 }}>🔒 SSL</span>
+              <span style={{ background:'rgba(255,255,255,.1)', padding:'4px 10px', borderRadius:6, fontSize:12 }}>💳 PayPal</span>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════════════════════════
+function Nav({ user, page, onPage, onShowAuth, onLogout }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', fn);
+    return () => window.removeEventListener('scroll', fn);
+  }, []);
+
+  return (
+    <nav style={{ position:'fixed', top:0, left:0, right:0, zIndex:900, transition:'all .3s',
+      background: scrolled || page !== 'landing' ? 'rgba(255,255,255,.97)' : 'transparent',
+      backdropFilter: scrolled || page !== 'landing' ? 'blur(12px)' : 'none',
+      borderBottom: scrolled || page !== 'landing' ? '1px solid #e5e7eb' : 'none',
+      boxShadow: scrolled ? '0 2px 20px rgba(0,0,0,.06)' : 'none',
+    }}>
+      <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 24px', height:62, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ fontFamily:'Playfair Display,serif', fontSize:22, fontWeight:700, cursor:'pointer',
+          color: scrolled || page !== 'landing' ? '#166534' : '#fff' }}
+          onClick={() => onPage('landing')}>
+          Quotly
+        </div>
+
+        <div className="hide-mobile" style={{ display:'flex', alignItems:'center', gap:4 }}>
+          {page === 'landing' && (
+            <>
+              {['Fonctionnalités','Tarifs','FAQ'].map(l => (
+                <a key={l} href={`#${l.toLowerCase().replace('é','e').replace('à','a')}`}
+                  className="nav-link" style={{ color: scrolled ? '#374151' : 'rgba(255,255,255,.85)', textDecoration:'none' }}>
+                  {l}
+                </a>
+              ))}
+            </>
+          )}
+          <button className="nav-link" onClick={() => onPage('app')} style={{ background:'none', border:'none', cursor:'pointer', color: page === 'app' ? '#166534' : (scrolled || page !== 'landing' ? '#374151' : 'rgba(255,255,255,.85)'), fontWeight: page === 'app' ? 700 : 500 }}>
+            Créer un devis
+          </button>
+        </div>
+
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {user ? (
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div className="hide-mobile" style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 14px', background:'#f0fdf4', borderRadius:99, fontSize:13 }}>
+                <span style={{ fontWeight:700, color:'#166534' }}>{user.name?.split(' ')[0]}</span>
+                <span className="badge status-accepted" style={{ fontSize:11, padding:'2px 8px' }}>{PLANS[user.plan] || user.plan}</span>
+              </div>
+              <button className="btn-ghost" onClick={onLogout} style={{ fontSize:13, color: scrolled || page !== 'landing' ? '#6b7280' : 'rgba(255,255,255,.75)' }}>Déconnexion</button>
+            </div>
+          ) : (
+            <div style={{ display:'flex', gap:8 }}>
+              <button className="nav-link" onClick={() => onShowAuth('login')} style={{ background:'none', border:'none', cursor:'pointer', color: scrolled || page !== 'landing' ? '#374151' : 'rgba(255,255,255,.85)', fontWeight:500 }}>
+                Connexion
+              </button>
+              <button className="btn-primary" onClick={() => onShowAuth('register')} style={{ fontSize:13, padding:'8px 18px' }}>
+                S'inscrire →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP ROOT
+// ═══════════════════════════════════════════════════════════════════════════════
+function App() {
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('qUser') || 'null'); } catch { return null; }
+  });
+  const [page, setPage] = useState('landing');
+  const [authModal, setAuthModal] = useState(null); // 'login' | 'register'
+  const [upgradeModal, setUpgradeModal] = useState(false);
+
+  // Verify token on mount + handle reset_token in URL
+  useEffect(() => {
+    const token = localStorage.getItem('qToken');
+    if (token) {
+      api('/auth/me').then(data => {
+        setUser(data.user);
+        localStorage.setItem('qUser', JSON.stringify(data.user));
+      }).catch(() => {
+        localStorage.removeItem('qToken');
+        localStorage.removeItem('qUser');
+        setUser(null);
+      });
+    }
+
+    // ✅ Gérer le lien de réinitialisation de mot de passe depuis l'email
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get('reset_token');
+    const resetEmail = params.get('email');
+    if (resetToken && resetEmail) {
+      // Pré-remplir le formulaire forgot-password étape 2
+      setAuthModal('login');
+      // On stocke temporairement pour que AuthModal puisse y accéder
+      window.__resetToken = resetToken;
+      window.__resetEmail = decodeURIComponent(resetEmail);
+      toast('Entrez votre nouveau mot de passe 🔑', 'info');
+    }
+  }, []);
+
+  function handleLogin(u) { setUser(u); }
+
+  function handleLogout() {
+    localStorage.removeItem('qToken');
+    localStorage.removeItem('qUser');
+    setUser(null);
+    setPage('landing');
+    toast('Vous êtes déconnecté', 'info');
+  }
+
+  function showAuth(tab = 'login') { setAuthModal(tab); }
+  function showUpgrade() { setUpgradeModal(true); }
+
+  return (
+    <>
+      <Toasts />
+      <Nav user={user} page={page} onPage={setPage} onShowAuth={showAuth} onLogout={handleLogout} />
+
+      <div style={{ paddingTop: page === 'landing' ? 0 : 62 }}>
+        {page === 'landing' && <Landing onShowAuth={showAuth} onGoApp={() => { if (!user) { showAuth('register'); } else { setPage('app'); } }} user={user} />}
+        {page === 'app' && (
+          <div>
+            <div style={{ background:'#f9fafb', borderBottom:'1px solid #e5e7eb', padding:'20px 24px' }}>
+              <div style={{ maxWidth:1100, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+                <div>
+                  <h1 style={{ margin:0, fontSize:22, fontWeight:700, fontFamily:'Playfair Display,serif' }}>📋 Nouveau devis</h1>
+                  <p style={{ margin:'4px 0 0', fontSize:14, color:'#6b7280' }}>
+                    {user ? `Connecté en tant que ${user.name} — Plan ${PLANS[user.plan]}` : 'Générez votre PDF gratuitement — connectez-vous pour sauvegarder'}
+                  </p>
+                </div>
+                {!user && (
+                  <button className="btn-primary" onClick={() => showAuth('login')}>
+                    Connexion / Inscription
+                  </button>
+                )}
+              </div>
+            </div>
+            <QuoteForm user={user} onShowUpgrade={showUpgrade} onShowAuth={() => showAuth('login')} />
+          </div>
+        )}
+      </div>
+
+      {authModal && <AuthModal onClose={() => setAuthModal(null)} onLogin={handleLogin} defaultTab={authModal} />}
+      {upgradeModal && <UpgradeModal onClose={() => setUpgradeModal(false)} user={user} />}
+    </>
+  );
+}
+
+// ── Mount ─────────────────────────────────────────────────────────────────────
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
