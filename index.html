@@ -883,6 +883,239 @@ function StatsModal({onClose}) {
 }
 
 // ═══════════════════════════════════
+// RELANCE MODAL
+// ═══════════════════════════════════
+function RelanceModal({onClose, quote, user}) {
+  const [relances, setRelances]=useState([]);
+  const [loading, setLoading]=useState(true);
+  const [activating, setActivating]=useState(false);
+  const [active, setActive]=useState(false);
+  const [nextSend, setNextSend]=useState(null);
+  const [countdown, setCountdown]=useState('');
+  const [maxRelances, setMaxRelances]=useState(5);
+  const [sentCount, setSentCount]=useState(0);
+  const [clientEmail, setClientEmail]=useState(quote?.client_email||'');
+  const [editingEmail, setEditingEmail]=useState(!quote?.client_email);
+
+  useEffect(()=>{
+    loadRelances();
+  },[]);
+
+  useEffect(()=>{
+    if(!nextSend||!active) return;
+    const tick=()=>{
+      const diff=new Date(nextSend)-new Date();
+      if(diff<=0){ setCountdown('Envoi imminent…'); return; }
+      const h=Math.floor(diff/3600000);
+      const m=Math.floor((diff%3600000)/60000);
+      const s=Math.floor((diff%60000)/1000);
+      setCountdown(`${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`);
+    };
+    tick();
+    const id=setInterval(tick,1000);
+    return ()=>clearInterval(id);
+  },[nextSend,active]);
+
+  async function loadRelances(){
+    setLoading(true);
+    try{
+      if(quote?.id){
+        const d=await api(`/quotes/${quote.id}/relances`);
+        setRelances(d.relances||[]);
+        setActive(d.active||false);
+        setSentCount(d.sent_count||0);
+        setMaxRelances(d.max_relances||5);
+        if(d.next_send) setNextSend(d.next_send);
+      }
+    } catch(e){
+      // Backend may not have this endpoint yet — use localStorage simulation
+      const key=`relance_${quote?.id||'draft'}`;
+      const stored=JSON.parse(localStorage.getItem(key)||'{}');
+      setActive(stored.active||false);
+      setSentCount(stored.sent_count||0);
+      setRelances(stored.history||[]);
+      if(stored.active&&stored.next_send){
+        setNextSend(stored.next_send);
+      }
+    }
+    setLoading(false);
+  }
+
+  async function toggleRelance(){
+    if(!clientEmail||!clientEmail.includes('@')){ toast('Email client requis pour activer les relances','error'); setEditingEmail(true); return; }
+    if(!quote?.id&&!quote?.client_name){ toast('Sauvegardez d\'abord le devis','info'); return; }
+    setActivating(true);
+    const newActive=!active;
+    try{
+      if(quote?.id){
+        await api(`/quotes/${quote.id}/relances`,'POST',{active:newActive,email:clientEmail,interval_hours:24,max_count:maxRelances});
+      }
+      // Local simulation
+      const key=`relance_${quote?.id||'draft'}`;
+      const next=new Date(Date.now()+24*3600*1000).toISOString();
+      const stored={
+        active:newActive,
+        sent_count:sentCount,
+        history:relances,
+        next_send:newActive?next:null,
+        email:clientEmail,
+        activated_at:new Date().toISOString(),
+      };
+      localStorage.setItem(key,JSON.stringify(stored));
+      setActive(newActive);
+      if(newActive){ setNextSend(next); toast('✦ Relances automatiques activées — 1er envoi dans 24h','success'); }
+      else{ setNextSend(null); toast('Relances désactivées','info'); }
+    } catch(e){ toast(e.message,'error'); }
+    setActivating(false);
+  }
+
+  function simulateSend(){
+    // Demo: simulate a relance being sent now
+    const key=`relance_${quote?.id||'draft'}`;
+    const stored=JSON.parse(localStorage.getItem(key)||'{}');
+    const newEntry={date:new Date().toISOString(),email:clientEmail,status:'sent',attempt:sentCount+1};
+    const newHistory=[newEntry,...(stored.history||[])];
+    const next=new Date(Date.now()+24*3600*1000).toISOString();
+    const updated={...stored,sent_count:sentCount+1,history:newHistory,next_send:next};
+    localStorage.setItem(key,JSON.stringify(updated));
+    setSentCount(sentCount+1);
+    setRelances(newHistory);
+    setNextSend(next);
+    toast(`✉ Relance simulée envoyée à ${clientEmail}`,'success');
+  }
+
+  const fmtRelanceDate=d=>new Date(d).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  const progress=Math.min((sentCount/maxRelances)*100,100);
+
+  return (
+    <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-box" style={{maxWidth:520}}>
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
+          <div>
+            <h3 style={{margin:0,fontSize:20,fontWeight:700,fontFamily:'Cormorant Garamond,serif',color:'#f5f5f4'}}>
+              ⟳ Relances automatiques
+            </h3>
+            <p style={{margin:'4px 0 0',fontSize:13,color:'#636059'}}>Plan Équipe ◆ — Envoi toutes les 24h</p>
+          </div>
+          <button className="btn btn-ghost" onClick={onClose} style={{padding:'4px 10px',fontSize:18,color:'#a8a6a1'}}>✕</button>
+        </div>
+
+        {loading?<div style={{textAlign:'center',padding:32}}><Spinner/></div>:(
+          <>
+            {/* Status card */}
+            <div style={{background:active?'rgba(201,168,76,.1)':'rgba(255,255,255,.04)',border:`1px solid ${active?'rgba(201,168,76,.35)':'rgba(255,255,255,.1)'}`,borderRadius:14,padding:'18px 20px',marginBottom:16,transition:'all .3s'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:10,height:10,borderRadius:'50%',background:active?'#c9a84c':'#4d4a44',boxShadow:active?'0 0 8px rgba(201,168,76,.6)':'none',transition:'all .3s'}}/>
+                  <span style={{fontWeight:700,fontSize:14,color:active?'#f5da8a':'#a8a6a1'}}>{active?'Relances actives':'Relances inactives'}</span>
+                </div>
+                <button className={`btn ${active?'btn-danger':'btn-gold'}`} onClick={toggleRelance} disabled={activating} style={{fontSize:13,padding:'7px 16px'}}>
+                  {activating?<Spinner light={!active}/>:active?'Désactiver':'Activer'}
+                </button>
+              </div>
+
+              {/* Email client */}
+              {editingEmail?(
+                <div style={{display:'flex',gap:8,marginBottom:12}}>
+                  <input className="inp" type="email" placeholder="email@client.com" value={clientEmail} onChange={e=>setClientEmail(e.target.value)} style={{flex:1,fontSize:13}} />
+                  <button className="btn btn-outline" onClick={()=>setEditingEmail(false)} style={{fontSize:12,padding:'8px 12px'}}>OK</button>
+                </div>
+              ):(
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,fontSize:13}}>
+                  <span style={{color:'#636059'}}>✉</span>
+                  <span style={{color:'#f5da8a',fontWeight:500}}>{clientEmail||'Aucun email'}</span>
+                  <button onClick={()=>setEditingEmail(true)} style={{background:'none',border:'none',cursor:'pointer',color:'#636059',fontSize:11,padding:0,fontFamily:'Plus Jakarta Sans,sans-serif'}}>modifier</button>
+                </div>
+              )}
+
+              {/* Countdown */}
+              {active&&nextSend&&(
+                <div style={{background:'rgba(0,0,0,.2)',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <span style={{fontSize:12,color:'#84817b'}}>Prochain envoi dans</span>
+                  <span style={{fontFamily:'Cormorant Garamond,serif',fontSize:22,fontWeight:700,color:'#c9a84c',letterSpacing:'.05em'}}>{countdown||'…'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Progress */}
+            <div style={{marginBottom:16}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize:12}}>
+                <span style={{color:'#84817b'}}>Relances envoyées</span>
+                <span style={{color:'#f5da8a',fontWeight:600}}>{sentCount} / {maxRelances}</span>
+              </div>
+              <div className="quota-bar">
+                <div className={`quota-fill${sentCount>=maxRelances?' danger':''}`} style={{width:`${progress}%`}} />
+              </div>
+              {sentCount>=maxRelances&&(
+                <div style={{fontSize:12,color:'#f09595',marginTop:6}}>Limite de {maxRelances} relances atteinte — le client ne sera plus contacté automatiquement.</div>
+              )}
+            </div>
+
+            {/* Config */}
+            <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',borderRadius:12,padding:'14px 16px',marginBottom:16,fontSize:13}}>
+              <div style={{fontWeight:600,color:'#f5f5f4',marginBottom:10,fontSize:12,textTransform:'uppercase',letterSpacing:'.06em'}}>Paramètres</div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{color:'#636059'}}>Fréquence</span>
+                  <span style={{color:'#f5da8a',fontWeight:500}}>Toutes les 24h</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{color:'#636059'}}>Relances max</span>
+                  <select style={{background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.2)',borderRadius:6,color:'#f5da8a',padding:'2px 8px',fontSize:12,fontFamily:'Plus Jakarta Sans,sans-serif'}} value={maxRelances} onChange={e=>setMaxRelances(parseInt(e.target.value))}>
+                    {[3,5,7,10].map(n=><option key={n} value={n}>{n} relances</option>)}
+                  </select>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{color:'#636059'}}>Arrêt auto si</span>
+                  <span style={{color:'#a8a6a1',fontSize:12}}>Devis accepté / refusé</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Demo button */}
+            {active&&sentCount<maxRelances&&(
+              <button className="btn btn-outline" onClick={simulateSend} style={{width:'100%',marginBottom:12,fontSize:13,borderStyle:'dashed'}}>
+                ⚡ Simuler un envoi maintenant (démo)
+              </button>
+            )}
+
+            {/* History */}
+            <div>
+              <div style={{fontWeight:600,color:'#84817b',fontSize:11,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>Historique</div>
+              {!relances.length?(
+                <div style={{textAlign:'center',padding:'20px 0',color:'#4d4a44',fontSize:13}}>
+                  {active?'La 1ʳᵉ relance sera envoyée dans 24h':'Aucune relance envoyée'}
+                </div>
+              ):(
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  {relances.slice(0,8).map((r,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'rgba(255,255,255,.03)',borderRadius:8,border:'1px solid rgba(255,255,255,.06)'}}>
+                      <span style={{fontSize:14}}>{r.status==='sent'?'✉':'✗'}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:12,fontWeight:600,color:'#f5f5f4'}}>Relance n°{r.attempt||i+1}</div>
+                        <div style={{fontSize:11,color:'#636059'}}>{r.email} · {fmtRelanceDate(r.date)}</div>
+                      </div>
+                      <span className={`badge ${r.status==='sent'?'status-accepted':'status-refused'}`} style={{fontSize:10}}>
+                        {r.status==='sent'?'Envoyé':'Échec'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{marginTop:16,padding:'10px 14px',background:'rgba(133,183,235,.06)',border:'1px solid rgba(133,183,235,.15)',borderRadius:10,fontSize:12,color:'#85b7eb'}}>
+              ℹ️ Les relances s'arrêtent automatiquement si le client accepte ou refuse le devis.
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════
 // QUOTA CONFIRM MODAL
 // ═══════════════════════════════════
 function QuotaConfirmModal({onClose, onConfirm, quota}) {
@@ -1163,6 +1396,14 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
             <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade();return;} setModal('stats'); }}>
               ◈ Statistiques
             </button>
+            <button className="btn btn-outline" style={{gridColumn:'1/-1',borderColor:user?.plan==='team'?'rgba(201,168,76,.4)':'rgba(255,255,255,.1)',position:'relative'}} onClick={()=>{ if(!user){onShowAuth();return;} if(user.plan!=='team'){onShowUpgrade('Les relances automatiques sont réservées au plan Équipe ◆.');return;} setModal('relance'); }}>
+              <span>⟳ Relances automatiques</span>
+              {user?.plan==='team'?(
+                <span style={{marginLeft:6,fontSize:11,background:'rgba(201,168,76,.15)',border:'1px solid rgba(201,168,76,.3)',borderRadius:4,padding:'1px 6px',color:'#c9a84c'}}>◆ Actif</span>
+              ):(
+                <span style={{marginLeft:6,fontSize:11,color:'#636059'}}> · Plan Équipe</span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -1247,6 +1488,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
       {modal==='email'&&<EmailModal onClose={()=>setModal(null)} quote={savedQuote||{...form,items}} user={user} sigData={sigData} />}
       {modal==='stats'&&<StatsModal onClose={()=>setModal(null)} />}
       {modal==='gallery'&&<TemplateGallery onClose={()=>setModal(null)} onSelect={selectTemplate} current={template} isPro={isPro()} onShowUpgrade={onShowUpgrade} />}
+      {modal==='relance'&&<RelanceModal onClose={()=>setModal(null)} quote={savedQuote||{client_email:form.client_email,client_name:form.client_name}} user={user} />}
       {showQuotaConfirm&&<QuotaConfirmModal onClose={()=>setShowQuotaConfirm(false)} quota={quota} onConfirm={()=>{setShowQuotaConfirm(false);if(pendingAction==='download') doDownload();}} />}
     </div>
   );
