@@ -612,7 +612,7 @@ function UpgradeModal({onClose, user, reason=''}) {
         </div>
         <h2 style={{margin:'0 0 8px',fontSize:22,fontWeight:700,fontFamily:'Cormorant Garamond,serif',color:'#f5f5f4'}}>Fonctionnalité <span className="gold-text">Premium</span></h2>
         <p style={{color:'#84817b',margin:'0 0 8px',fontSize:14,lineHeight:1.6}}>
-          {reason||(!user?'Connectez-vous ou créez un compte pour accéder à cette fonctionnalité.':'Passez au plan Pro pour débloquer toutes les fonctionnalités.')}
+          {reason||(!user?'Connectez-vous ou créez un compte pour accéder à cette fonctionnalité.':'Passez au plan Pro ou Équipe pour débloquer toutes les fonctionnalités.')}
         </p>
         <div style={{background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.15)',borderRadius:12,padding:'16px',margin:'16px 0 24px',display:'flex',flexDirection:'column',gap:8}}>
           {['20+ templates premium','Devis illimités','Signature électronique illimitée','Conversion en factures','Envoi email intégré'].map((f,i)=>(
@@ -791,7 +791,7 @@ function EmailModal({onClose, quote, user, sigData}) {
         await api(`/quotes/${quote.id}/send`,'POST',{email:to});
         toast(`Devis envoyé à ${to} avec PDF joint ✦`);
       } else if(user){
-        toast('Envoi email disponible sur le plan Pro','info');
+        toast('Envoi email disponible sur les plans Pro et Équipe','info');
       } else {
         const doc=generatePDF(quote,user,sigData);
         doc.save('devis.pdf');
@@ -1201,7 +1201,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
   async function handleDownload(){
     if(!form.company&&!form.client_name){ toast('Remplissez au moins votre entreprise et le client','error'); return; }
     if(!user){ toast('Connectez-vous pour télécharger le PDF','info'); onShowAuth(); return; }
-    if(PRO_TPLS.includes(template)&&user.plan==='starter'){ onShowUpgrade('Ce template est réservé au plan Pro.'); return; }
+    if(PRO_TPLS.includes(template)&&user.plan==='starter'){ onShowUpgrade('Ce template est réservé aux plans Pro et Équipe.'); return; }
 
     // Show quota warning for starter plan
     if(user.plan==='starter'&&quota&&quota.quotes.remaining!==null&&quota.quotes.remaining<=1&&!savedQuote){
@@ -1384,7 +1384,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
             <button className="btn btn-gold" onClick={handleDownload} disabled={saving} style={{gridColumn:'1/-1',padding:'14px',fontSize:15}}>
               {saving?<><Spinner/> Génération…</>:'⬇ Télécharger le devis PDF'}
             </button>
-            <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade('Envoi email réservé au plan Pro.');return;} setModal('email'); }}>
+            <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade('Envoi email réservé aux plans Pro et Équipe.');return;} setModal('email'); }}>
               ✉ Envoyer par email
             </button>
             <button className="btn btn-outline" onClick={handleSig}>
