@@ -562,9 +562,8 @@ function AuthModal({onClose, onLogin, defaultTab='login'}) {
                   value={otpCode} onChange={e=>setOtpCode(e.target.value.replace(/\D/g,''))}
                   style={{fontSize:24,letterSpacing:8,textAlign:'center',fontWeight:700}} autoFocus required />
               </div>
-              <div style={{background:'#eef2ff',border:'1px solid rgba(79,70,229,.25)',borderRadius:10,padding:'10px 14px',fontSize:13,color:'#4338ca',lineHeight:1.6}}>
-                📧 Vérifiez vos spams si vous ne recevez pas le code.
-                <div style={{color:'#64748b',fontSize:12,marginTop:4}}>Compte équipe ? Le code est envoyé sur l'email du compte.</div>
+              <div style={{background:'#eef2ff',border:'1px solid rgba(79,70,229,.25)',borderRadius:10,padding:'10px 14px',fontSize:13,color:'#4338ca'}}>
+                Vérifiez vos spams si vous ne recevez pas le code.
               </div>
               <button className="btn btn-gold" type="submit" disabled={loading||otpCode.length!==6} style={{width:'100%'}}>
                 {loading?<Spinner light/>:'Valider le code ✓'}
@@ -654,13 +653,13 @@ function UpgradeModal({onClose, user, reason=''}) {
           ))}
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <a href="https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ" target="_blank" className="btn btn-gold" style={{width:'100%',textDecoration:'none',fontSize:15,padding:'13px 20px',boxShadow:'0 4px 16px rgba(79,70,229,.3)'}}>
-            ✦ Plan Pro — <strong>9,99€/mois</strong>
+          <a href="https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ" target="_blank" className="btn btn-gold" style={{width:'100%',textDecoration:'none',fontSize:15}}>
+            ✦ Plan Pro — 9,99€/mois
           </a>
-          <a href="https://www.paypal.com/ncp/payment/BXFT9S9669PWY" target="_blank" className="btn btn-outline" style={{width:'100%',textDecoration:'none',fontSize:14,padding:'12px 20px',borderWidth:2}}>
-            ◆ Plan Équipe — <strong>24,99€/mois</strong> · 5 utilisateurs
+          <a href="https://www.paypal.com/ncp/payment/BXFT9S9669PWY" target="_blank" className="btn btn-outline" style={{width:'100%',textDecoration:'none'}}>
+            ◆ Plan Équipe — 24,99€/mois
           </a>
-          <button className="btn btn-ghost" onClick={onClose} style={{width:'100%',fontSize:13,color:'#94a3b8'}}>Pas maintenant</button>
+          <button className="btn btn-ghost" onClick={onClose} style={{width:'100%'}}>Pas maintenant</button>
         </div>
       </div>
     </div>
@@ -1011,47 +1010,33 @@ function RelanceModal({onClose, quote, user}) {
 
   async function toggleRelance(){
     if(!clientEmail||!clientEmail.includes('@')){ toast('Email client requis pour activer les relances','error'); setEditingEmail(true); return; }
-    if(!quote?.id&&!quote?.client_name){ toast('Sauvegardez d\'abord le devis','info'); return; }
+    if(!quote?.id){ toast('Sauvegardez d\'abord le devis pour activer les relances','info'); return; }
     setActivating(true);
     const newActive=!active;
     try{
-      if(quote?.id){
-        await api(`/quotes/${quote.id}/relances`,'POST',{active:newActive,email:clientEmail,interval_hours:intervalHours,max_count:maxRelances});
-      }
-      // Local simulation
-      const key=`relance_${quote?.id||'draft'}`;
-      const next=new Date(Date.now()+intervalHours*3600*1000).toISOString();
-      const stored={
-        active:newActive,
-        sent_count:sentCount,
-        history:relances,
-        next_send:newActive?next:null,
-        email:clientEmail,
-        interval_hours:intervalHours,
-        max_relances:maxRelances,
-        activated_at:new Date().toISOString(),
-      };
-      localStorage.setItem(key,JSON.stringify(stored));
+      const d=await api(`/quotes/${quote.id}/relances`,'POST',{active:newActive,email:clientEmail,interval_hours:intervalHours,max_count:maxRelances});
       setActive(newActive);
-      if(newActive){ setNextSend(next); toast(`✦ Relances activées — 1er envoi dans ${intervalHours}h`,'success'); }
+      if(newActive){ setNextSend(d.next_send); toast(`✦ Relances activées — 1er envoi dans ${intervalHours}h`,'success'); }
       else{ setNextSend(null); toast('Relances désactivées','info'); }
     } catch(e){ toast(e.message,'error'); }
     setActivating(false);
   }
 
-  function simulateSend(){
-    // Demo: simulate a relance being sent now
-    const key=`relance_${quote?.id||'draft'}`;
-    const stored=JSON.parse(localStorage.getItem(key)||'{}');
-    const newEntry={date:new Date().toISOString(),email:clientEmail,status:'sent',attempt:sentCount+1};
-    const newHistory=[newEntry,...(stored.history||[])];
-    const next=new Date(Date.now()+intervalHours*3600*1000).toISOString();
-    const updated={...stored,sent_count:sentCount+1,history:newHistory,next_send:next};
-    localStorage.setItem(key,JSON.stringify(updated));
-    setSentCount(sentCount+1);
-    setRelances(newHistory);
-    setNextSend(next);
-    toast(`✉ Relance simulée envoyée à ${clientEmail}`,'success');
+  async function simulateSend(){
+    if(!clientEmail||!clientEmail.includes('@')){ toast('Email client requis','error'); return; }
+    if(!quote?.id){ toast('Sauvegardez d\'abord le devis','info'); return; }
+    setActivating(true);
+    try{
+      await api(`/quotes/${quote.id}/relances/send-now`,'POST',{email:clientEmail});
+      const newEntry={date:new Date().toISOString(),email:clientEmail,status:'sent',attempt:sentCount+1};
+      const newHistory=[newEntry,...relances];
+      const next=new Date(Date.now()+intervalHours*3600*1000).toISOString();
+      setSentCount(sentCount+1);
+      setRelances(newHistory);
+      setNextSend(next);
+      toast(`✉ Relance envoyée à ${clientEmail}`,'success');
+    }catch(err){ toast(err.message,'error'); }
+    finally{ setActivating(false); }
   }
 
   const fmtRelanceDate=d=>new Date(d).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -1198,44 +1183,33 @@ function RelanceModal({onClose, quote, user}) {
 // ═══════════════════════════════════
 // TEAM MODAL (OFFRE ÉQUIPE)
 // ═══════════════════════════════════
-// ─── TeamModal ─────────────────────────────────────────────────────────────
-// Tente d'abord /api/team (route principale stockant dans users),
-// puis replie sur /api/team/members (route alternative) si 404.
 function TeamModal({onClose, user}) {
   const [members, setMembers]=useState([]);
   const [loading, setLoading]=useState(true);
   const [creating, setCreating]=useState(false);
   const [deleting, setDeleting]=useState(null);
-  const [form, setForm]=useState({name:'',email:'',password:'',showPwd:false});
+  const [form, setForm]=useState({name:'',email:'',password:''});
   const [showForm, setShowForm]=useState(false);
-  const [errMsg, setErrMsg]=useState('');
-  const [apiRoute, setApiRoute]=useState(null); // '/team' | '/team/members'
   const set=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
   const MAX_MEMBERS=5;
 
   useEffect(()=>{ loadMembers(); },[]);
 
-  // Détecte automatiquement la bonne route backend
+  const [backendReady, setBackendReady]=useState(true);
+
   async function loadMembers(){
-    setLoading(true); setErrMsg('');
-    // Essaye d'abord /api/team (team.js → table users)
-    for(const route of ['/team','/team/members']){
-      try{
-        const d=await api(route);
-        setMembers(d.members||[]);
-        setApiRoute(route);
-        setLoading(false);
-        return;
-      } catch(e){
-        // 403 = route existe mais plan insuffisant
-        if(e.message.includes('403')||e.message.includes('Plan')){
-          setErrMsg('Votre compte ne dispose pas du plan Équipe actif.');
-          setLoading(false); return;
-        }
-        // Continue si 404 pour tester la prochaine route
+    setLoading(true);
+    try{
+      const d=await api('/team/members');
+      setMembers(d.members||[]);
+      setBackendReady(true);
+    } catch(e){
+      if(e.message.includes('404')||e.message.includes('introuvable')||e.message.includes('Cannot GET')){
+        setBackendReady(false);
+      } else {
+        toast(e.message,'error');
       }
     }
-    setErrMsg('Les routes backend équipe sont inaccessibles. Vérifiez le déploiement.');
     setLoading(false);
   }
 
@@ -1247,25 +1221,20 @@ function TeamModal({onClose, user}) {
     if(members.length>=MAX_MEMBERS){ toast(`Limite de ${MAX_MEMBERS} comptes atteinte`,'error'); return; }
     setCreating(true);
     try{
-      // /api/team → POST /invite ; /api/team/members → POST direct
-      const postRoute=apiRoute==='/team'?'/team/invite':'/team/members';
-      const d=await api(postRoute,'POST',{name:form.name.trim(),email:form.email.toLowerCase().trim(),password:form.password});
-      // Normalise la réponse (les deux routes retournent des formats légèrement différents)
-      const newMember=d.member||{id:Date.now(),name:form.name.trim(),email:form.email.toLowerCase().trim(),created_at:new Date().toISOString()};
-      setMembers(p=>[...p,newMember]);
-      setForm({name:'',email:'',password:'',showPwd:false});
+      const d=await api('/team/members','POST',{name:form.name.trim(),email:form.email.toLowerCase().trim(),password:form.password});
+      setMembers(p=>[...p,d.member]);
+      setForm({name:'',email:'',password:''});
       setShowForm(false);
-      toast(`✦ Compte créé pour ${newMember.name} — connexion possible immédiatement`);
+      toast(`Compte créé pour ${d.member.name} ✦`);
     } catch(e){ toast(e.message,'error'); }
     setCreating(false);
   }
 
   async function deleteMember(id,name){
-    if(!confirm(`Supprimer le compte de ${name} ? Cette action est irréversible.`)) return;
+    if(!confirm(`Supprimer le compte de ${name} ?`)) return;
     setDeleting(id);
     try{
-      const delRoute=apiRoute==='/team'?`/team/${id}`:`/team/members/${id}`;
-      await api(delRoute,'DELETE');
+      await api(`/team/members/${id}`,'DELETE');
       setMembers(p=>p.filter(m=>m.id!==id));
       toast(`Compte de ${name} supprimé`,'info');
     } catch(e){ toast(e.message,'error'); }
@@ -1276,111 +1245,90 @@ function TeamModal({onClose, user}) {
 
   return (
     <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal-box" style={{maxWidth:600}}>
-        {/* Header */}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+      <div className="modal-box" style={{maxWidth:580}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
           <div>
-            <h3 style={{margin:0,fontSize:20,fontWeight:700,color:'#1e293b'}}>◆ Gestion de l'équipe</h3>
-            <p style={{margin:'4px 0 0',fontSize:13,color:'#4f46e5',fontWeight:600}}>
-              Plan Équipe · {members.length}/{MAX_MEMBERS} comptes utilisés
-            </p>
+            <h3 style={{margin:0,fontSize:20,fontWeight:700,fontFamily:'Inter,sans-serif',color:'#1e293b'}}>
+              ◆ Gestion de l'équipe
+            </h3>
+            <p style={{margin:'4px 0 0',fontSize:13,color:'#4f46e5',fontWeight:600}}>Plan Équipe — {members.length}/{MAX_MEMBERS} comptes utilisés</p>
           </div>
           <button className="btn btn-ghost" onClick={onClose} style={{padding:'4px 10px',fontSize:18,color:'#475569'}}>✕</button>
         </div>
 
-        {/* Barre de progression */}
+        {/* Quota bar */}
         <div style={{marginBottom:20}}>
           <div className="quota-bar">
-            <div className={`quota-fill${members.length>=MAX_MEMBERS?' danger':''}`} style={{width:`${(members.length/MAX_MEMBERS)*100}%`}}/>
+            <div className={`quota-fill${members.length>=MAX_MEMBERS?' danger':''}`} style={{width:`${(members.length/MAX_MEMBERS)*100}%`}} />
           </div>
-          <div style={{display:'flex',justifyContent:'space-between',marginTop:5,fontSize:12,color:'#64748b'}}>
-            <span>{slots>0?`${slots} emplacement${slots>1?'s':''} disponible${slots>1?'s':''}`:'Limite atteinte'}</span>
-            <span style={{color:apiRoute?'#16a34a':'#94a3b8',fontWeight:600}}>
-              {apiRoute?`✓ Connecté (${apiRoute})`:'⚙ Détection…'}
-            </span>
+          <div style={{fontSize:12,color:'#64748b',marginTop:5}}>
+            {slots>0?`${slots} emplacement${slots>1?'s':''} disponible${slots>1?'s':''}`:'Limite de 5 comptes atteinte'}
           </div>
         </div>
 
-        {loading?(
-          <div style={{textAlign:'center',padding:40}}><Spinner/><p style={{marginTop:12,color:'#64748b',fontSize:13}}>Chargement des membres…</p></div>
-        ):errMsg?(
-          <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:14,padding:'20px',textAlign:'center'}}>
-            <div style={{fontSize:28,marginBottom:10}}>⚠️</div>
-            <div style={{fontWeight:700,color:'#dc2626',marginBottom:8}}>{errMsg}</div>
-            <button className="btn btn-outline" onClick={loadMembers} style={{marginTop:8}}>↻ Réessayer</button>
+        {/* Members list */}
+        {loading?<div style={{textAlign:'center',padding:32}}><Spinner/></div>:!backendReady?(
+          <div style={{background:'rgba(240,149,149,.08)',border:'1px solid rgba(240,149,149,.3)',borderRadius:14,padding:'20px 20px',textAlign:'center'}}>
+            <div style={{fontSize:28,marginBottom:10}}>⚙️</div>
+            <div style={{fontWeight:700,color:'#ef4444',marginBottom:8,fontSize:15}}>Routes backend manquantes</div>
+            <p style={{color:'#475569',fontSize:13,lineHeight:1.7,margin:'0 0 14px'}}>
+              Le backend ne connaît pas encore les routes <code style={{background:'rgba(255,255,255,.1)',padding:'2px 6px',borderRadius:4,fontSize:12}}>/api/team/members</code>.<br/>
+              Ajoute le fichier <strong style={{color:'#4f46e5'}}>team-routes.js</strong> à ton backend et redéploie.
+            </p>
+            <button className="btn btn-outline" onClick={loadMembers} style={{fontSize:13}}>↻ Réessayer</button>
           </div>
         ):(
           <>
-            {/* Liste des membres */}
             {!members.length&&!showForm&&(
               <div style={{textAlign:'center',padding:'32px 0',color:'#94a3b8',fontSize:14}}>
-                <div style={{fontSize:40,marginBottom:12}}>👥</div>
-                <div style={{fontWeight:600,color:'#64748b',marginBottom:4}}>Aucun compte équipe créé</div>
-                Créez jusqu'à 5 comptes pour vos collaborateurs.
+                <div style={{fontSize:32,marginBottom:12}}>👥</div>
+                Aucun compte équipe créé.<br/>Créez jusqu'à 5 comptes pour vos collaborateurs.
               </div>
             )}
             {members.length>0&&(
               <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16}}>
                 {members.map(m=>(
-                  <div key={m.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:12}}>
-                    <div style={{width:38,height:38,borderRadius:'50%',background:'linear-gradient(135deg,#4f46e5,#7c3aed)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:14,flexShrink:0}}>
-                      {m.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()||'?'}
+                  <div key={m.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:12}}>
+                    <div style={{width:36,height:36,borderRadius:'50%',background:'linear-gradient(135deg,#c9a84c,#7e470e)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:13,flexShrink:0}}>
+                      {m.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
                     </div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:600,fontSize:14,color:'#1e293b'}}>{m.name}</div>
-                      <div style={{fontSize:12,color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.email}</div>
+                      <div style={{fontSize:12,color:'#64748b',marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.email}</div>
                     </div>
                     <span className="badge status-accepted" style={{fontSize:10,flexShrink:0}}>Actif</span>
                     <button className="btn btn-danger" onClick={()=>deleteMember(m.id,m.name)} disabled={deleting===m.id} style={{fontSize:12,padding:'6px 12px',flexShrink:0}}>
-                      {deleting===m.id?<Spinner/>:'✕ Retirer'}
+                      {deleting===m.id?<Spinner/>:'Supprimer'}
                     </button>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Formulaire création */}
+            {/* Create form */}
             {showForm?(
-              <div style={{background:'#eef2ff',border:'1.5px solid #c7d2fe',borderRadius:14,padding:'20px'}}>
-                <div style={{fontWeight:700,fontSize:14,color:'#4f46e5',marginBottom:16,display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{width:24,height:24,background:'#4f46e5',borderRadius:6,display:'inline-flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:12}}>+</span>
-                  Nouveau compte membre
+              <form onSubmit={createMember} style={{background:'rgba(201,168,76,.06)',border:'1px solid rgba(79,70,229,.15)',borderRadius:14,padding:'18px 20px',display:'flex',flexDirection:'column',gap:12}}>
+                <div style={{fontWeight:600,fontSize:13,color:'#4f46e5',marginBottom:4}}>Nouveau compte membre</div>
+                <div><label>Prénom & Nom</label><input className="inp" placeholder="Jean Dupont" value={form.name} onChange={set('name')} required /></div>
+                <div><label>Email</label><input className="inp" type="email" placeholder="jean@societe.com" value={form.email} onChange={set('email')} required /></div>
+                <div><label>Mot de passe temporaire</label><input className="inp" type="password" placeholder="6 caractères minimum" value={form.password} onChange={set('password')} required /></div>
+                <div style={{display:'flex',gap:10,marginTop:4}}>
+                  <button type="button" className="btn btn-ghost" onClick={()=>{setShowForm(false);setForm({name:'',email:'',password:''}); }} style={{flex:1}}>Annuler</button>
+                  <button type="submit" className="btn btn-gold" disabled={creating} style={{flex:2}}>
+                    {creating?<Spinner light/>:'Créer le compte ✦'}
+                  </button>
                 </div>
-                <div style={{display:'flex',flexDirection:'column',gap:12}}>
-                  <div><label>Prénom & Nom</label><input className="inp" placeholder="Marie Dupont" value={form.name} onChange={set('name')} autoFocus /></div>
-                  <div><label>Email (identifiant de connexion)</label><input className="inp" type="email" placeholder="marie@societe.fr" value={form.email} onChange={set('email')} /></div>
-                  <div>
-                    <label>Mot de passe temporaire</label>
-                    <div style={{position:'relative'}}>
-                      <input className="inp" type={form.showPwd?'text':'password'} placeholder="Min. 6 caractères" value={form.password} onChange={set('password')} style={{paddingRight:40}}/>
-                      <button type="button" onClick={()=>setForm(p=>({...p,showPwd:!p.showPwd}))} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:'#94a3b8',fontSize:16}}>
-                        {form.showPwd?'🙈':'👁'}
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{background:'#fff',border:'1px solid #c7d2fe',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#4f46e5'}}>
-                    ✓ Le membre se connecte sur <strong>quotly.fr</strong> avec son email + mot de passe<br/>
-                    ✓ Accès complet à toutes les fonctionnalités Plan Équipe<br/>
-                    ✗ Ne peut pas créer d'autres comptes membres
-                  </div>
-                  <div style={{display:'flex',gap:10,marginTop:4}}>
-                    <button className="btn btn-ghost" onClick={()=>{setShowForm(false);setForm({name:'',email:'',password:'',showPwd:false});}} style={{flex:1}}>Annuler</button>
-                    <button className="btn btn-gold" onClick={createMember} disabled={creating||!form.name.trim()||!form.email.trim()||form.password.length<6} style={{flex:2}}>
-                      {creating?<><Spinner light/> Création…</>:'✦ Créer le compte'}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              </form>
             ):(
               slots>0&&(
-                <button className="btn btn-outline" onClick={()=>setShowForm(true)} style={{width:'100%',borderStyle:'dashed',fontSize:14,padding:'12px',gap:8}}>
-                  <span style={{fontSize:18,lineHeight:1}}>+</span> Créer un compte membre
+                <button className="btn btn-outline" onClick={()=>setShowForm(true)} style={{width:'100%',borderStyle:'dashed',fontSize:14}}>
+                  + Créer un compte membre
                 </button>
               )
             )}
 
-            <div style={{marginTop:16,padding:'12px 14px',background:'rgba(59,130,246,.06)',border:'1px solid rgba(59,130,246,.15)',borderRadius:10,fontSize:12,color:'#3b82f6',lineHeight:1.6}}>
-              ℹ️ Les membres se connectent avec leur <strong>email + mot de passe</strong> directement sur Quotly. Ils accèdent à toutes les fonctionnalités Plan Équipe mais ne peuvent pas créer d'autres comptes.
+            <div style={{marginTop:16,padding:'10px 14px',background:'rgba(133,183,235,.06)',border:'1px solid rgba(133,183,235,.15)',borderRadius:10,fontSize:12,color:'#3b82f6'}}>
+              ℹ️ Les membres peuvent se connecter avec leur email et mot de passe et accèdent à toutes les fonctionnalités du plan Équipe.
             </div>
           </>
         )}
@@ -1867,53 +1815,46 @@ function Landing({onShowAuth, onGoApp, user}) {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" style={{padding:'90px 24px',background:'#f0f4ff',borderTop:'1px solid #dde4f5',borderBottom:'1px solid #dde4f5'}}>
-        <div style={{maxWidth:1060,margin:'0 auto'}}>
+      <section id="pricing" style={{padding:'90px 24px',background:'#f8fafc',borderTop:'1px solid #e2e8f0',borderBottom:'1px solid #e2e8f0'}}>
+        <div style={{maxWidth:1000,margin:'0 auto'}}>
           <div style={{textAlign:'center',marginBottom:60}}>
-            <div style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,fontWeight:700,letterSpacing:'.12em',textTransform:'uppercase',color:'#4f46e5',background:'#eef2ff',border:'1px solid #c7d2fe',borderRadius:999,padding:'5px 14px',marginBottom:18}}>◈ &nbsp; Tarifs</div>
-            <h2 style={{margin:0,fontSize:'clamp(30px,4vw,46px)',fontFamily:'Inter,sans-serif',fontWeight:800,color:'#0f172a'}}>
-              Simple &amp; <em style={{color:'#4f46e5',fontStyle:'normal'}}>transparent</em>
+            <div style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:11,fontWeight:600,letterSpacing:'.1em',textTransform:'uppercase',color:'#4f46e5',marginBottom:16}}>◈ &nbsp; Tarifs</div>
+            <h2 style={{margin:0,fontSize:'clamp(30px,4vw,46px)',fontFamily:'Inter,sans-serif',fontWeight:700,color:'#1e293b'}}>
+              Simple &amp; <em style={{color:'#4f46e5'}}>transparent</em>
             </h2>
-            <p style={{color:'#64748b',marginTop:12,fontSize:16}}>Pas de frais cachés. Résiliable à tout moment.</p>
+            <p style={{color:'#64748b',marginTop:12,fontSize:15}}>Pas de frais cachés. Résiliable à tout moment.</p>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:24}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:20}}>
             {[
-              {name:'Starter',icon:'◻',price:'0€',priceColor:'#334155',period:'pour toujours',features:['3 devis / mois','1 template classique','Export PDF','Support email'],cta:'Commencer gratuitement',featured:false,payUrl:null,ctaFn:()=>onShowAuth('register'),bg:'#ffffff',border:'#e2e8f0',shadow:'0 2px 12px rgba(0,0,0,.06)'},
-              {name:'Pro',icon:'✦',price:'9,99€',priceColor:'#4f46e5',period:'par mois · sans engagement',features:['Devis illimités','22 templates premium','Signature électronique illimitée','Conversion en factures','Envoi email intégré','⟳ Relances auto (délai personnalisable)','Support prioritaire'],cta:'Choisir le Pro →',featured:true,payUrl:'https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ',bg:'#ffffff',border:'#818cf8',shadow:'0 8px 32px rgba(79,70,229,.18)'},
-              {name:'Équipe',icon:'◆',price:'24,99€',priceColor:'#1e293b',period:'par mois · 5 utilisateurs inclus',features:['Tout du plan Pro','👥 5 comptes utilisateurs (accès complet)','⟳ Relances auto avancées','Tableau de bord équipe','Intégrations API','Onboarding dédié'],cta:'Choisir Équipe →',featured:false,payUrl:'https://www.paypal.com/ncp/payment/BXFT9S9669PWY',bg:'#ffffff',border:'#e2e8f0',shadow:'0 2px 12px rgba(0,0,0,.06)'},
+              {name:'Starter',icon:'◻',price:'0€',period:'pour toujours',features:['3 devis / mois','1 template classique','Export PDF','Support email'],cta:'Commencer gratuitement',featured:false,payUrl:null,ctaFn:()=>onShowAuth('register')},
+              {name:'Pro',icon:'✦',price:'9,99€',period:'par mois · sans engagement',features:['Devis illimités','22 templates premium','Signature électronique illimitée','Conversion en factures','Envoi email intégré','⟳ Relances auto (délai personnalisable)','Support prioritaire'],cta:'Choisir le Pro',featured:true,payUrl:'https://www.paypal.com/ncp/payment/SLGH8N66YPCAQ'},
+              {name:'Équipe',icon:'◆',price:'24,99€',period:'par mois · 5 utilisateurs inclus',features:['Tout du plan Pro','👥 5 comptes utilisateurs (accès complet)','⟳ Relances auto avancées','Tableau de bord équipe','Intégrations API','Onboarding dédié'],cta:'Choisir Équipe',featured:false,payUrl:'https://www.paypal.com/ncp/payment/BXFT9S9669PWY'},
             ].map((plan,i)=>(
-              <div key={i} style={{background:plan.bg,border:`2px solid ${plan.border}`,borderRadius:20,padding:'32px 28px',transition:'all .25s',position:'relative',boxShadow:plan.shadow}}
-                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow=plan.featured?'0 16px 48px rgba(79,70,229,.25)':'0 8px 24px rgba(0,0,0,.1)';}}
-                onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow=plan.shadow;}}>
-                {plan.featured&&<div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#4f46e5,#7c3aed)',color:'#fff',fontSize:12,fontWeight:700,padding:'5px 20px',borderRadius:999,letterSpacing:'.06em',whiteSpace:'nowrap',boxShadow:'0 4px 12px rgba(79,70,229,.4)'}}>✦ Le plus populaire</div>}
-                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-                  <div style={{width:40,height:40,borderRadius:10,background:plan.featured?'linear-gradient(135deg,#4f46e5,#7c3aed)':'rgba(79,70,229,.1)',border:`1px solid ${plan.featured?'transparent':'rgba(79,70,229,.2)'}`,display:'flex',alignItems:'center',justifyContent:'center',color:plan.featured?'#fff':'#4f46e5',fontSize:18,fontWeight:700}}>{plan.icon}</div>
-                  <div style={{fontWeight:700,fontSize:18,color:'#0f172a',fontFamily:'Inter,sans-serif'}}>{plan.name}</div>
+              <div key={i} style={{background:plan.featured?'rgba(201,168,76,.06)':'rgba(255,255,255,.03)',border:`1px solid ${plan.featured?'rgba(79,70,229,.3)':'rgba(255,255,255,.08)'}`,borderRadius:20,padding:28,transition:'all .25s',position:'relative'}}
+                onMouseEnter={e=>{if(!plan.featured){e.currentTarget.style.borderColor='rgba(79,70,229,.15)';e.currentTarget.style.transform='translateY(-2px)'}}}
+                onMouseLeave={e=>{if(!plan.featured){e.currentTarget.style.borderColor='rgba(255,255,255,.08)';e.currentTarget.style.transform='none'}}}>
+                {plan.featured&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#4f46e5,#7c3aed)',color:'#fff',fontSize:11,fontWeight:700,padding:'4px 16px',borderRadius:999,letterSpacing:'.05em',whiteSpace:'nowrap'}}>✦ Populaire</div>}
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                  <div style={{width:36,height:36,borderRadius:8,background:'rgba(79,70,229,.1)',border:'1px solid rgba(79,70,229,.15)',display:'flex',alignItems:'center',justifyContent:'center',color:'#4f46e5',fontSize:16}}>{plan.icon}</div>
+                  <div style={{fontWeight:700,fontSize:17,color:'#1e293b'}}>{plan.name}</div>
                 </div>
-                {/* PRIX — clairement visible */}
-                <div style={{marginBottom:20,padding:'16px 0',borderTop:'1px solid #f1f5f9',borderBottom:'1px solid #f1f5f9'}}>
-                  <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                    <span style={{fontSize:48,fontWeight:800,fontFamily:'Inter,sans-serif',color:plan.priceColor,lineHeight:1,letterSpacing:'-.02em'}}>{plan.price}</span>
-                    {plan.price!=='0€'&&<span style={{fontSize:14,color:'#64748b',fontWeight:500}}>/mois</span>}
-                  </div>
-                  <div style={{fontSize:13,color:'#64748b',marginTop:4,fontWeight:400}}>{plan.period}</div>
-                </div>
-                <ul style={{listStyle:'none',padding:0,margin:'0 0 28px',display:'flex',flexDirection:'column',gap:10}}>
+                <div style={{fontSize:38,fontWeight:700,fontFamily:'Inter,sans-serif',color:plan.featured?'#818cf8':'#f5f5f4',marginBottom:2}}>{plan.price}</div>
+                <div style={{fontSize:12,color:'#64748b',marginBottom:24}}>{plan.period}</div>
+                <ul style={{listStyle:'none',padding:0,margin:'0 0 28px',display:'flex',flexDirection:'column',gap:8}}>
                   {plan.features.map((f,j)=>(
-                    <li key={j} style={{display:'flex',gap:10,alignItems:'flex-start',fontSize:13.5,color:'#334155',lineHeight:1.5}}>
-                      <span style={{color:'#4f46e5',flexShrink:0,marginTop:1,fontSize:15}}>✓</span>{f}
+                    <li key={j} style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:13,color:'#475569'}}>
+                      <span style={{color:'#4f46e5',flexShrink:0,marginTop:1}}>✦</span>{f}
                     </li>
                   ))}
                 </ul>
                 {plan.payUrl?(
-                  <a href={plan.payUrl} target="_blank" className={`btn ${plan.featured?'btn-gold':'btn-outline'}`} style={{width:'100%',textDecoration:'none',display:'flex',justifyContent:'center',boxSizing:'border-box',fontSize:14,padding:'12px 20px'}}>{plan.cta}</a>
+                  <a href={plan.payUrl} target="_blank" className={`btn ${plan.featured?'btn-gold':'btn-outline'}`} style={{width:'100%',textDecoration:'none',display:'flex',justifyContent:'center',boxSizing:'border-box'}}>{plan.cta}</a>
                 ):(
-                  <button className="btn btn-outline" onClick={plan.ctaFn} style={{width:'100%',fontSize:14,padding:'12px 20px'}}>{plan.cta}</button>
+                  <button className="btn btn-outline" onClick={plan.ctaFn} style={{width:'100%'}}>{plan.cta}</button>
                 )}
               </div>
             ))}
           </div>
-          <p style={{textAlign:'center',marginTop:28,fontSize:13,color:'#94a3b8'}}>💳 Paiement sécurisé via PayPal · Aucun engagement · Résiliable en 1 clic</p>
         </div>
       </section>
 
@@ -2035,7 +1976,7 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam}) {
 
         <div className="hide-mobile" style={{display:'flex',alignItems:'center',gap:4}}>
           {onLanding&&['Fonctionnalités','Tarifs','FAQ'].map(l=>(
-            <a key={l} href={`#${{'Fonctionnalités':'features','Tarifs':'pricing','FAQ':'faq'}[l]||l.toLowerCase().replace('é','e').replace('à','a')}`} className="nav-link">{l}</a>
+            <a key={l} href={`#${l.toLowerCase().replace('é','e').replace('à','a')}`} className="nav-link">{l}</a>
           ))}
           <button className="nav-link" onClick={()=>onPage('app')} style={{background:'none',border:'none',cursor:'pointer',color:page==='app'?'#4f46e5':'#a8a6a1',fontWeight:page==='app'?700:500,fontSize:14,padding:'6px 10px'}} onMouseEnter={e=>e.currentTarget.style.color='#4f46e5'} onMouseLeave={e=>e.currentTarget.style.color=page==='app'?'#4f46e5':'#a8a6a1'}>
             Créer un devis
