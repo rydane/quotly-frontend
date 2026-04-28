@@ -1495,7 +1495,18 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
       let quote=savedQuote;
       if(!quote){ const saved=await saveQuote(); if(!saved){ setSaving(false); return; } quote=saved; setSavedQuote(saved); setQuoteNum(saved.number); }
       // Génération PDF côté frontend pour inclure la signature vendeur
-      const quoteData={...form,items,number:quote.number,id:quote.id,tva_rate:parseFloat(form.tva_rate),validity_days:parseInt(form.validity_days)};
+      const quoteData={
+        company_name:form.company,
+        client_name:form.client_name,
+        client_address:form.client_address,
+        client_email:form.client_email,
+        conditions:form.conditions,
+        items,
+        tva_rate:parseFloat(form.tva_rate),
+        validity_days:parseInt(form.validity_days),
+        number:quote.number,
+        id:quote.id
+      };
       const doc=generatePDF(quoteData,user,sigData);
       doc.save((quote.number||'devis')+'.pdf');
       toast('PDF téléchargé ✦');
