@@ -2070,6 +2070,116 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam}) {
 }
 
 // ═══════════════════════════════════
+// SIGN PAGE (client)
+// ═══════════════════════════════════
+function SignPage({token}) {
+  const [quote, setQuote]=useState(null);
+  const [loading, setLoading]=useState(true);
+  const [error, setError]=useState(null);
+  const [signed, setSigned]=useState(false);
+  const [signerName, setSignerName]=useState('');
+  const [sigData, setSigData]=useState(null);
+  const canvasRef=React.useRef(null);
+  const [drawing, setDrawing]=useState(false);
+  const [hasSig, setHasSig]=useState(false);
+
+  useEffect(()=>{
+    fetch(`${API}/sign/${token}`)
+      .then(r=>r.json())
+      .then(d=>{ if(d.error){ setError(d.error); } else { setQuote(d.quote||d); } setLoading(false); })
+      .catch(()=>{ setError('Erreur de connexion.'); setLoading(false); });
+  },[token]);
+
+  function startDraw(e){
+    setDrawing(true);
+    const c=canvasRef.current; const r=c.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const ctx=c.getContext('2d'); ctx.beginPath(); ctx.moveTo(x,y);
+  }
+  function draw(e){
+    if(!drawing) return;
+    e.preventDefault();
+    const c=canvasRef.current; const r=c.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const ctx=c.getContext('2d'); ctx.lineTo(x,y); ctx.strokeStyle='#1e293b'; ctx.lineWidth=2; ctx.stroke();
+    setHasSig(true);
+  }
+  function endDraw(){ setDrawing(false); }
+  function clearSig(){ const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height); setHasSig(false); }
+
+  async function submitSign(){
+    if(!hasSig){ alert('Veuillez signer dans le cadre'); return; }
+    const data=canvasRef.current.toDataURL('image/png');
+    setSigData(data);
+    const res=await fetch(`${API}/sign/${token}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature_data:data,signer_name:signerName})});
+    const d=await res.json();
+    if(d.error){ alert(d.error); return; }
+    setSigned(true);
+  }
+
+  if(loading) return React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',color:'#64748b'}},'Chargement...');
+  if(error) return React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',gap:12}},
+    React.createElement('div',{style:{fontSize:48}},'⚠️'),
+    React.createElement('h2',{style:{color:'#ef4444',margin:0}},error),
+    React.createElement('p',{style:{color:'#64748b'}},'Ce lien est invalide ou a expiré.')
+  );
+
+  const items=typeof quote.items==='string'?JSON.parse(quote.items):quote.items||[];
+  const ht=items.reduce((s,i)=>s+(i.qty||0)*(i.unit_price||0),0);
+  const tva=ht*(quote.tva_rate||20)/100;
+  const ttc=ht+tva;
+  const fmt=n=>n.toFixed(2).replace('.',',')+'€';
+
+  if(signed) return React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',gap:16,padding:24,textAlign:'center'}},
+    React.createElement('div',{style:{fontSize:64}},'✅'),
+    React.createElement('h2',{style:{color:'#10b981',margin:0,fontSize:24}},'Devis signé !'),
+    React.createElement('p',{style:{color:'#64748b',maxWidth:400}},'Merci '+signerName+'. Le devis '+quote.number+' a bien été signé. '+quote.company_name+' a été notifié.')
+  );
+
+  return React.createElement('div',{style:{fontFamily:'Inter,sans-serif',minHeight:'100vh',background:'#f8fafc',padding:'24px 16px'}},
+    React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+      React.createElement('div',{style:{background:'#4f46e5',color:'white',borderRadius:'12px 12px 0 0',padding:'20px 24px',textAlign:'center'}},
+        React.createElement('h1',{style:{margin:0,fontSize:22,fontWeight:700}},'Quotly'),
+        React.createElement('p',{style:{margin:'4px 0 0',opacity:.8,fontSize:14}},'Devis pro en 60 secondes')
+      ),
+      React.createElement('div',{style:{background:'white',borderRadius:'0 0 12px 12px',padding:24,boxShadow:'0 4px 24px rgba(0,0,0,.08)'}},
+        React.createElement('h2',{style:{margin:'0 0 4px',fontSize:20,color:'#1e293b'}},'Devis '+quote.number),
+        React.createElement('p',{style:{margin:'0 0 20px',color:'#64748b',fontSize:14}},quote.company_name+' vous a envoyé un devis'),
+        quote.status==='accepted'
+          ? React.createElement('div',{style:{background:'#d1fae5',color:'#065f46',padding:'12px 16px',borderRadius:8,textAlign:'center',fontWeight:600,marginBottom:20}},'✅ Ce devis a déjà été signé.')
+          : null,
+        React.createElement('div',{style:{background:'#f8fafc',borderRadius:8,padding:16,marginBottom:20}},
+          items.map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:i<items.length-1?'1px solid #e2e8f0':'none',fontSize:14}},
+            React.createElement('span',{style:{color:'#1e293b'}},it.description),
+            React.createElement('span',{style:{color:'#64748b'}},it.qty+' × '+fmt(it.unit_price))
+          )),
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0 0',fontWeight:700,fontSize:16,borderTop:'2px solid #e2e8f0',marginTop:8}},
+            React.createElement('span',null,'Total TTC'),
+            React.createElement('span',{style:{color:'#4f46e5'}},fmt(ttc))
+          )
+        ),
+        quote.status!=='accepted'&&React.createElement('div',null,
+          React.createElement('div',{style:{marginBottom:12}},
+            React.createElement('label',{style:{display:'block',fontSize:13,color:'#64748b',marginBottom:6,fontWeight:500}},'Votre nom'),
+            React.createElement('input',{style:{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:14,boxSizing:'border-box'},placeholder:'Prénom Nom',value:signerName,onChange:e=>setSignerName(e.target.value)})
+          ),
+          React.createElement('label',{style:{display:'block',fontSize:13,color:'#64748b',marginBottom:6,fontWeight:500}},'Votre signature'),
+          React.createElement('canvas',{ref:canvasRef,width:540,height:140,style:{border:'2px dashed #c7d2fe',borderRadius:8,width:'100%',touchAction:'none',cursor:'crosshair',background:'white'},
+            onMouseDown:startDraw,onMouseMove:draw,onMouseUp:endDraw,onMouseLeave:endDraw,
+            onTouchStart:startDraw,onTouchMove:draw,onTouchEnd:endDraw}),
+          React.createElement('button',{onClick:clearSig,style:{fontSize:12,color:'#64748b',background:'none',border:'none',cursor:'pointer',marginTop:4,padding:0}},'Effacer'),
+          React.createElement('button',{onClick:submitSign,disabled:!hasSig,style:{display:'block',width:'100%',marginTop:16,padding:'14px',background:hasSig?'#4f46e5':'#e2e8f0',color:hasSig?'white':'#94a3b8',border:'none',borderRadius:8,fontSize:16,fontWeight:700,cursor:hasSig?'pointer':'not-allowed'}},
+            '✍️ Signer et accepter le devis'
+          )
+        )
+      )
+    )
+  );
+}
+
+// ═══════════════════════════════════
 // APP ROOT
 // ═══════════════════════════════════
 function App() {
@@ -2079,8 +2189,13 @@ function App() {
   const [upgradeModal, setUpgradeModal]=useState(false);
   const [upgradeReason, setUpgradeReason]=useState('');
   const [teamModal, setTeamModal]=useState(false);
+  const [signToken, setSignToken]=useState(null);
 
   useEffect(()=>{
+    // Détection URL /sign/:token
+    const path=window.location.pathname;
+    const match=path.match(/\/sign\/([a-zA-Z0-9_-]+)/);
+    if(match){ setSignToken(match[1]); return; }
     const token=localStorage.getItem('qToken');
     if(token){ api('/auth/me').then(d=>{ setUser(d.user); localStorage.setItem('qUser',JSON.stringify(d.user)); }).catch(()=>{ localStorage.removeItem('qToken'); localStorage.removeItem('qUser'); setUser(null); }); }
     // URL reset token flow removed — now uses email code
@@ -2094,6 +2209,8 @@ function App() {
   return (
     <>
       <Toasts />
+      {signToken ? <SignPage token={signToken} /> : (
+      <>
       <Nav user={user} page={page} onPage={setPage} onShowAuth={showAuth} onLogout={handleLogout} onShowTeam={()=>setTeamModal(true)} />
 
       <div style={{paddingTop:page==='landing'?0:64}}>
@@ -2123,6 +2240,8 @@ function App() {
       {authModal&&<AuthModal onClose={()=>setAuthModal(null)} onLogin={handleLogin} defaultTab={authModal} />}
       {upgradeModal&&<UpgradeModal onClose={()=>setUpgradeModal(false)} user={user} reason={upgradeReason} />}
       {teamModal&&user?.plan==='team'&&<TeamModal onClose={()=>setTeamModal(false)} user={user} />}
+    </>
+      )}
     </>
   );
 }
