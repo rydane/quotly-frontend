@@ -109,7 +109,7 @@ router.post('/:id/relances', requireAuth, requirePro, async (req, res) => {
     }
 
     // Validation des paramètres
-    const intervalH = Math.max(1, Math.min(720, parseInt(interval_hours) || 24));
+    const intervalH = Math.max(0.016, Math.min(720, parseFloat(interval_hours) || 24));
     const maxCount  = Math.max(1, Math.min(20,  parseInt(max_count)      || 5));
 
     // Calcul du premier envoi : maintenant + interval_hours
@@ -172,7 +172,7 @@ router.put('/:id/relances/:rid', requireAuth, requirePro, async (req, res) => {
       max_count      = relance.max_count,
     } = req.body;
 
-   const intervalH = Math.max(0.016, Math.min(720, parseFloat(interval_hours) || 24));
+    const intervalH = Math.max(0.016, Math.min(720, parseFloat(interval_hours) || 24));
     const maxCount  = Math.max(1, Math.min(20,  parseInt(max_count)      || 5));
 
     // Si on réactive une relance terminée, recalculer next_send_at
