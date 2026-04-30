@@ -140,7 +140,7 @@ tailwind.config = {
 
   @media(max-width:640px){
     .modal-box{padding:24px 18px;max-width:100%}
-    .hide-mobile{display:none!important}
+    @media(max-width:640px){.hide-mobile{display:none!important}}
     .stack-mobile{grid-template-columns:1fr!important}
     .card{padding:16px}
   }
