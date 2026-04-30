@@ -1158,7 +1158,6 @@ function RelanceModal({onClose, quote, user}) {
                     <div>
                       <label>Délai entre envois</label>
                       <select className="sel" value={newInterval} onChange={e=>setNewInterval(parseFloat(e.target.value))}>
-                        <option value={0.017}>1 minute (test)</option>
                         <option value={1}>1 heure</option>
                         <option value={3}>3 heures</option>
                         <option value={6}>6 heures</option>
@@ -2293,7 +2292,21 @@ function App() {
     const match=path.match(/\/sign\/([a-zA-Z0-9_-]+)/);
     if(match){ setSignToken(match[1]); return; }
     const token=localStorage.getItem('qToken');
-    if(token){ api('/auth/me').then(d=>{ setUser(d.user); localStorage.setItem('qUser',JSON.stringify(d.user)); }).catch(()=>{ localStorage.removeItem('qToken'); localStorage.removeItem('qUser'); setUser(null); }); }
+    if(token){ api('/auth/me').then(d=>{ setUser(d.user); localStorage.setItem('qUser',JSON.stringify(d.user));
+      // Charger la relance active la plus récente pour le timer navbar
+      api('/quotes').then(qs=>{
+        const quotes=(qs.quotes||qs||[]);
+        const checks=quotes.slice(0,10).map(q=>api(`/quotes/${q.id}/relances`).then(r=>{
+          const active=(r.relances||[]).filter(rel=>rel.active&&rel.next_send_at&&rel.sent_count<rel.max_count);
+          if(active.length>0) return {relances:active,quoteNum:q.number||q.id};
+          return null;
+        }).catch(()=>null));
+        Promise.all(checks).then(results=>{
+          const found=results.find(r=>r!==null);
+          if(found) setNavRelance(found);
+        });
+      }).catch(()=>{});
+    }).catch(()=>{ localStorage.removeItem('qToken'); localStorage.removeItem('qUser'); setUser(null); }); }
     // URL reset token flow removed — now uses email code
   },[]);
 
