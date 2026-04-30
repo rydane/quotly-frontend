@@ -2085,8 +2085,179 @@ function Landing({onShowAuth, onGoApp, user}) {
 }
 
 // ═══════════════════════════════════
-// NAV
+// NOTIFICATION BELL
 // ═══════════════════════════════════
+function NotificationBell({onOpenQuote}){
+  const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef(null);
+
+  const fetchCount = useCallback(async()=>{
+    try {
+      const r = await api('/notifications/unread-count');
+      setUnread(r.count||0);
+    } catch(e){}
+  },[]);
+
+  const fetchAll = useCallback(async()=>{
+    setLoading(true);
+    try {
+      const r = await api('/notifications');
+      setNotifs(r.notifications||[]);
+      setUnread(r.unread_count||0);
+    } catch(e){}
+    setLoading(false);
+  },[]);
+
+  // Polling du compteur toutes les 30s
+  useEffect(()=>{
+    fetchCount();
+    const id = setInterval(fetchCount, 30000);
+    return ()=>clearInterval(id);
+  },[fetchCount]);
+
+  // Fermer au clic extérieur
+  useEffect(()=>{
+    if(!open) return;
+    const h=(e)=>{ if(ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown',h);
+    return ()=>document.removeEventListener('mousedown',h);
+  },[open]);
+
+  const toggle = ()=>{
+    const next=!open;
+    setOpen(next);
+    if(next) fetchAll();
+  };
+
+  const markRead = async(id)=>{
+    try {
+      await api(`/notifications/${id}/read`,'PUT');
+      setNotifs(p=>p.map(n=>n.id===id?{...n,read:true}:n));
+      setUnread(u=>Math.max(0,u-1));
+    } catch(e){}
+  };
+
+  const markAllRead = async()=>{
+    try {
+      await api('/notifications/read-all','PUT');
+      setNotifs(p=>p.map(n=>({...n,read:true})));
+      setUnread(0);
+    } catch(e){}
+  };
+
+  const deleteOne = async(id,e)=>{
+    e.stopPropagation();
+    try {
+      await api(`/notifications/${id}`,'DELETE');
+      setNotifs(p=>p.filter(n=>n.id!==id));
+    } catch(e){}
+  };
+
+  const clearAll = async()=>{
+    if(!confirm('Supprimer toutes les notifications ?')) return;
+    try {
+      await api('/notifications','DELETE');
+      setNotifs([]);
+      setUnread(0);
+    } catch(e){}
+  };
+
+  const handleClick = (n)=>{
+    if(!n.read) markRead(n.id);
+    // Ouvre le devis associé si possible
+    if(n.type==='quote_signed' && n.data?.quote_id && onOpenQuote){
+      onOpenQuote(n.data.quote_id);
+      setOpen(false);
+    }
+  };
+
+  const iconFor = (type)=>{
+    if(type==='quote_signed') return '✍️';
+    if(type==='quote_sent')   return '📧';
+    if(type==='invoice_paid') return '💰';
+    return '🔔';
+  };
+
+  const timeAgo = (iso)=>{
+    const diff = (Date.now()-new Date(iso).getTime())/1000;
+    if(diff<60) return 'à l\'instant';
+    if(diff<3600) return `il y a ${Math.floor(diff/60)} min`;
+    if(diff<86400) return `il y a ${Math.floor(diff/3600)} h`;
+    return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+  };
+
+  return (
+    <div ref={ref} style={{position:'relative'}}>
+      <button onClick={toggle} title="Notifications" aria-label="Notifications" style={{
+        position:'relative',width:38,height:38,borderRadius:'50%',border:'1px solid #e2e8f0',
+        background:open?'#eef2ff':'#fff',cursor:'pointer',display:'flex',alignItems:'center',
+        justifyContent:'center',fontSize:17,transition:'all .2s'
+      }}>
+        🔔
+        {unread>0 && (
+          <span style={{
+            position:'absolute',top:-3,right:-3,minWidth:18,height:18,padding:'0 5px',
+            borderRadius:99,background:'#ef4444',color:'#fff',fontSize:10,fontWeight:800,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            border:'2px solid #fff',boxShadow:'0 2px 6px rgba(239,68,68,.45)'
+          }}>{unread>99?'99+':unread}</span>
+        )}
+      </button>
+
+      {open && (
+        <div className="scale-in" style={{
+          position:'absolute',right:0,top:46,width:360,maxWidth:'calc(100vw - 24px)',
+          background:'#fff',border:'1px solid #e2e8f0',borderRadius:14,
+          boxShadow:'0 20px 50px -10px rgba(15,23,42,.25)',zIndex:1000,overflow:'hidden'
+        }}>
+          <div style={{padding:'14px 16px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div style={{fontWeight:700,fontSize:14,color:'#0f172a'}}>Notifications {unread>0&&<span style={{color:'#ef4444'}}>({unread})</span>}</div>
+            <div style={{display:'flex',gap:10}}>
+              {unread>0 && <button onClick={markAllRead} style={{background:'none',border:'none',color:'#4f46e5',fontSize:11,fontWeight:600,cursor:'pointer'}}>Tout marquer lu</button>}
+              {notifs.length>0 && <button onClick={clearAll} style={{background:'none',border:'none',color:'#94a3b8',fontSize:11,fontWeight:600,cursor:'pointer'}}>Tout effacer</button>}
+            </div>
+          </div>
+          <div style={{maxHeight:420,overflowY:'auto'}}>
+            {loading ? (
+              <div style={{padding:'30px 16px',textAlign:'center',color:'#94a3b8',fontSize:13}}><Spinner/> Chargement…</div>
+            ) : notifs.length===0 ? (
+              <div style={{padding:'40px 16px',textAlign:'center',color:'#94a3b8',fontSize:13}}>
+                <div style={{fontSize:32,marginBottom:8,opacity:.4}}>🔕</div>
+                Aucune notification
+              </div>
+            ) : notifs.map(n=>(
+              <div key={n.id} onClick={()=>handleClick(n)} style={{
+                padding:'12px 16px',borderBottom:'1px solid #f8fafc',cursor:'pointer',
+                background:n.read?'#fff':'#eef2ff',display:'flex',gap:11,alignItems:'flex-start',
+                transition:'background .15s'
+              }} onMouseEnter={e=>e.currentTarget.style.background=n.read?'#f8fafc':'#e0e7ff'}
+                 onMouseLeave={e=>e.currentTarget.style.background=n.read?'#fff':'#eef2ff'}>
+                <div style={{fontSize:20,flexShrink:0,lineHeight:1}}>{iconFor(n.type)}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <div style={{fontWeight:700,fontSize:13,color:'#0f172a'}}>{n.title}</div>
+                    {!n.read && <span style={{width:7,height:7,borderRadius:'50%',background:'#4f46e5',flexShrink:0}}/>}
+                  </div>
+                  {n.message && <div style={{fontSize:12,color:'#475569',marginTop:3,lineHeight:1.4}}>{n.message}</div>}
+                  <div style={{fontSize:10,color:'#94a3b8',marginTop:5,fontWeight:600}}>{timeAgo(n.created_at)}</div>
+                </div>
+                <button onClick={(e)=>deleteOne(n.id,e)} title="Supprimer" style={{
+                  background:'none',border:'none',color:'#cbd5e1',cursor:'pointer',fontSize:14,
+                  padding:2,flexShrink:0,lineHeight:1
+                }} onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                   onMouseLeave={e=>e.currentTarget.style.color='#cbd5e1'}>✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NavTimer({nextSendAt}){
   const [cd,setCd]=React.useState('');
   React.useEffect(()=>{
@@ -2106,7 +2277,7 @@ function NavTimer({nextSendAt}){
   return <span style={{fontFamily:'monospace',fontSize:13,fontWeight:700,color:'#4f46e5'}}>{cd||'...'}</span>;
 }
 
-function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance}) {
+function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance, onOpenQuote}) {
   const [menuOpen, setMenuOpen]=useState(false);
   const [scrolled, setScrolled]=useState(false);
   useEffect(()=>{ const fn=()=>setScrolled(window.scrollY>30); window.addEventListener('scroll',fn); return ()=>window.removeEventListener('scroll',fn); },[]);
@@ -2148,6 +2319,7 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance})
               {user.plan==='team'&&(
                 <button className="btn btn-outline" onClick={onShowTeam} style={{fontSize:12,padding:'6px 14px',borderColor:'rgba(79,70,229,.35)'}}>◆ Équipe</button>
               )}
+              <NotificationBell onOpenQuote={onOpenQuote} />
               <button className="btn btn-ghost" onClick={onLogout} style={{fontSize:13,color:'#64748b'}}>Déconnexion</button>
             </div>
           ):(
@@ -2320,7 +2492,7 @@ function App() {
       <Toasts />
       {signToken ? <SignPage token={signToken} /> : (
       <>
-      <Nav user={user} page={page} onPage={setPage} onShowAuth={showAuth} onLogout={handleLogout} onShowTeam={()=>setTeamModal(true)} navRelance={navRelance} />
+      <Nav user={user} page={page} onPage={setPage} onShowAuth={showAuth} onLogout={handleLogout} onShowTeam={()=>setTeamModal(true)} navRelance={navRelance} onOpenQuote={(qid)=>{ setPage('app'); toast('Ouvre la liste de tes devis pour consulter le devis signé','info'); }} />
 
       <div style={{paddingTop:page==='landing'?0:64}}>
         {page==='landing'&&<Landing onShowAuth={showAuth} onGoApp={()=>{ if(!user){showAuth('register');}else{setPage('app');} }} user={user} />}
