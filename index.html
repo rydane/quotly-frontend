@@ -288,7 +288,7 @@ function generatePDF(quote, user, sigDataUrl=null) {
   doc.text(quote.company_name||user?.name||'Votre Entreprise', M, 20);
   doc.setFontSize(9); doc.setFont('helvetica','normal');
   doc.setTextColor(...headerSubRgb);
-  doc.text('Devis professionnel · Quotly', M, 29);
+  doc.text('Devis professionnel · Defact', M, 29);
 
   doc.setTextColor(...headerTextRgb);
   doc.setFontSize(13); doc.setFont('helvetica','bold');
@@ -439,9 +439,9 @@ function generatePDF(quote, user, sigDataUrl=null) {
   doc.setFillColor(201,168,76);
   doc.rect(0,284,W,1,'F');
   doc.setFontSize(7); doc.setTextColor(180,170,150); doc.setFont('helvetica','normal');
-  doc.text('Genere avec Quotly · Document confidentiel', M, 291);
+  doc.text('Genere avec Defact · Document confidentiel', M, 291);
   doc.setTextColor(201,168,76);
-  doc.text('quotly.fr', W-M, 291,{align:'right'});
+  doc.text('defact.vercel.app', W-M, 291,{align:'right'});
 
   return doc;
 }
