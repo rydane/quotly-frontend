@@ -2497,12 +2497,25 @@ function SignPage({token}) {
     React.createElement('h2',{style:{color:'#ef4444',margin:0}},error),
     React.createElement('p',{style:{color:'#64748b'}},'Ce lien est invalide ou a expiré.')
   );
+  if(!quote) return React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',color:'#64748b'}},'Devis introuvable.');
 
-  const items=typeof quote.items==='string'?JSON.parse(quote.items):quote.items||[];
-  const ht=items.reduce((s,i)=>s+(i.qty||0)*(i.unit_price||0),0);
-  const tva=ht*(quote.tva_rate||20)/100;
+  // Normalisation ULTRA défensive des items pour éviter toute page blanche
+  let items=[];
+  try{
+    let raw=quote.items;
+    if(typeof raw==='string'){ try{ raw=JSON.parse(raw); }catch(_){ raw=[]; } }
+    if(!Array.isArray(raw)) raw=[];
+    items=raw.filter(x=>x&&typeof x==='object').map(x=>({
+      description:String(x.description||x.desc||x.name||x.label||''),
+      qty:Number(x.qty!=null?x.qty:(x.quantity!=null?x.quantity:1))||0,
+      unit_price:Number(x.unit_price!=null?x.unit_price:(x.price!=null?x.price:(x.unitPrice!=null?x.unitPrice:0)))||0
+    }));
+  }catch(e){ console.error('[SignPage] items parse error',e); items=[]; }
+  const ht=items.reduce((s,i)=>s+(Number(i.qty)||0)*(Number(i.unit_price)||0),0);
+  const tvaRate=Number(quote.tva_rate)||20;
+  const tva=ht*tvaRate/100;
   const ttc=ht+tva;
-  const fmt=n=>n.toFixed(2).replace('.',',')+'€';
+  const fmt=n=>(Number(n)||0).toFixed(2).replace('.',',')+'€';
 
   if(signed) return React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',gap:16,padding:24,textAlign:'center'}},
     React.createElement('div',{style:{fontSize:64}},'✅'),
@@ -2536,11 +2549,21 @@ function SignPage({token}) {
           ? React.createElement('div',{style:{background:'#fef2f2',color:'#991b1b',padding:'12px 16px',borderRadius:8,textAlign:'center',fontWeight:600,marginBottom:20}},'✋ Ce devis a été refusé.')
           : null,
         React.createElement('div',{style:{background:'#f8fafc',borderRadius:8,padding:16,marginBottom:20}},
-          items.map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:i<items.length-1?'1px solid #e2e8f0':'none',fontSize:14}},
-            React.createElement('span',{style:{color:'#1e293b'}},it.description),
-            React.createElement('span',{style:{color:'#64748b'}},it.qty+' × '+fmt(it.unit_price))
-          )),
-          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0 0',fontWeight:700,fontSize:16,borderTop:'2px solid #e2e8f0',marginTop:8}},
+          items.length===0
+            ? React.createElement('div',{style:{padding:'6px 0',fontSize:13,color:'#94a3b8',fontStyle:'italic'}},'(aucune ligne détaillée)')
+            : items.map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',gap:12,padding:'6px 0',borderBottom:i<items.length-1?'1px solid #e2e8f0':'none',fontSize:14}},
+              React.createElement('span',{style:{color:'#1e293b',flex:1}},it.description||'(sans description)'),
+              React.createElement('span',{style:{color:'#64748b',whiteSpace:'nowrap'}},it.qty+' × '+fmt(it.unit_price))
+            )),
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'8px 0 0',fontSize:13,color:'#64748b',marginTop:items.length===0?0:8,borderTop:items.length===0?'none':'1px dashed #e2e8f0'}},
+            React.createElement('span',null,'Total HT'),
+            React.createElement('span',null,fmt(ht))
+          ),
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:13,color:'#64748b'}},
+            React.createElement('span',null,'TVA ('+tvaRate+'%)'),
+            React.createElement('span',null,fmt(tva))
+          ),
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'10px 0 0',fontWeight:700,fontSize:16,borderTop:'2px solid #e2e8f0',marginTop:6}},
             React.createElement('span',null,'Total TTC'),
             React.createElement('span',{style:{color:'#4f46e5'}},fmt(ttc))
           )
