@@ -1464,6 +1464,22 @@ function QuotaConfirmModal({onClose, onConfirm, quota}) {
 // ═══════════════════════════════════
 // QUOTE FORM
 // ═══════════════════════════════════
+class QuoteErrorBoundary extends React.Component {
+  constructor(p){ super(p); this.state={err:null}; }
+  static getDerivedStateFromError(err){ return {err}; }
+  componentDidCatch(err,info){ console.error('[QuoteForm crash]',err,info); }
+  render(){
+    if(this.state.err){
+      return React.createElement('div',{style:{maxWidth:720,margin:'40px auto',padding:24,background:'#fff1f2',border:'1px solid #fecaca',borderRadius:12,fontFamily:'Inter,sans-serif'}},
+        React.createElement('div',{style:{fontSize:32,marginBottom:8}},'⚠️'),
+        React.createElement('h2',{style:{margin:'0 0 8px',color:'#b91c1c'}},'Une erreur est survenue lors de l\'affichage du devis'),
+        React.createElement('p',{style:{color:'#7f1d1d',fontSize:14,margin:'0 0 12px'}},String(this.state.err?.message||this.state.err)),
+        React.createElement('button',{onClick:()=>{ try{localStorage.removeItem('qOpenQuote');}catch(_){}; this.setState({err:null}); location.reload(); },style:{padding:'10px 16px',background:'#4f46e5',color:'#fff',border:'none',borderRadius:8,fontWeight:600,cursor:'pointer'}},'Recharger un formulaire vide')
+      );
+    }
+    return this.props.children;
+  }
+}
 function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
   const [template, setTemplate]=useState('classique');
   const [sigData, setSigData]=useState(null);
@@ -1476,9 +1492,18 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
     if(!raw) return null;
     localStorage.removeItem('qOpenQuote'); // consommé une seule fois
     const q=JSON.parse(raw);
-    if(typeof q.items==='string'){ try{ q.items=JSON.parse(q.items); }catch(_){ q.items=[]; } }
+    if(!q||typeof q!=='object') return null;
+    // Normalise items : peut être string JSON, array, objet, null
+    let it=q.items;
+    if(typeof it==='string'){ try{ it=JSON.parse(it); }catch(_){ it=[]; } }
+    if(!Array.isArray(it)) it=[];
+    q.items=it.filter(x=>x&&typeof x==='object').map(x=>({
+      description:String(x.description||''),
+      qty:Number(x.qty)||1,
+      unit_price:Number(x.unit_price)||0
+    }));
     return q;
-  }catch(_){ return null; } })();
+  }catch(e){ console.error('[qOpenQuote] parse error',e); return null; } })();
   const [savedQuote, setSavedQuoteState]=useState(_opened);
   function setSavedQuote(q){ setSavedQuoteState(q); }
   const [modal, setModal]=useState(null);
@@ -2631,7 +2656,7 @@ function App() {
                 )}
               </div>
             </div>
-            <QuoteForm key={openedQuoteKey} user={user} onShowUpgrade={showUpgrade} onShowAuth={()=>showAuth('login')} onRelanceUpdate={setNavRelance} />
+            <QuoteErrorBoundary key={openedQuoteKey}><QuoteForm user={user} onShowUpgrade={showUpgrade} onShowAuth={()=>showAuth('login')} onRelanceUpdate={setNavRelance} /></QuoteErrorBoundary>
           </div>
         )}
       </div>
