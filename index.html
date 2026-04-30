@@ -1729,7 +1729,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
             <button className="btn btn-gold" onClick={handleDownload} disabled={saving} style={{gridColumn:'1/-1',padding:'14px',fontSize:15}}>
               {saving?<><Spinner/> Génération…</>:'⬇ Télécharger le devis PDF'}
             </button>
-            <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade('Envoi email réservé aux plans Pro et Équipe.');return;} setModal('email'); }}>
+            <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} setModal('email'); }}>
               ✉ Envoyer par email
             </button>
             <button className="btn btn-outline" onClick={handleSig}>
@@ -1741,7 +1741,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
             <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade();return;} setModal('stats'); }}>
               ◈ Statistiques
             </button>
-            <button className="btn btn-outline" style={{gridColumn:'1/-1',borderColor:(user?.plan==='team'||user?.plan==='pro')?'rgba(79,70,229,.35)':'rgba(255,255,255,.1)',position:'relative'}} onClick={async ()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade('Les relances automatiques sont réservées aux plans Pro ✦ et Équipe ◆.');return;} if(!savedQuote?.id){ toast('Sauvegarde du devis en cours…','info'); const saved=await saveQuote(); if(!saved) return; setSavedQuote(saved); setQuoteNum(saved.number); } setModal('relance'); }}>
+            <button className="btn btn-outline" style={{gridColumn:'1/-1',borderColor:(user?.plan==='team'||user?.plan==='pro')?'rgba(79,70,229,.35)':'rgba(255,255,255,.1)',position:'relative'}} onClick={async ()=>{ if(!user){onShowAuth();return;} if(!savedQuote?.id){ toast('Sauvegarde du devis en cours…','info'); const saved=await saveQuote(); if(!saved) return; setSavedQuote(saved); setQuoteNum(saved.number); } setModal('relance'); }}>
               <span>⟳ Relances automatiques</span>
               {isPro()?(
                 <span style={{marginLeft:6,fontSize:11,background:'rgba(79,70,229,.12)',border:'1px solid rgba(79,70,229,.25)',borderRadius:4,padding:'1px 6px',color:'#4f46e5'}}>{user.plan==='team'?'◆ Actif':'✦ Actif'}</span>
@@ -2140,7 +2140,7 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance})
                 <span className="badge status-accepted" style={{fontSize:10,padding:'1px 7px'}}>{PLANS[user.plan]||user.plan}</span>
               </div>
               {navRelance?.relances?.length>0&&navRelance.relances[0]?.next_send_at&&(
-                <div className="hide-mobile" style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',background:'linear-gradient(135deg,#f5f3ff,#eef2ff)',border:'1.5px solid #c7d2fe',borderRadius:99,fontSize:11,cursor:'default'}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',background:'linear-gradient(135deg,#f5f3ff,#eef2ff)',border:'1.5px solid #c7d2fe',borderRadius:99,fontSize:11,cursor:'default'}}>
                   <span>⏱</span>
                   {navRelance.quoteNum&&<span style={{fontWeight:700,color:'#4f46e5',fontSize:11}}>{navRelance.quoteNum}</span>}
                   <NavTimer nextSendAt={navRelance.relances[0].next_send_at}/>
