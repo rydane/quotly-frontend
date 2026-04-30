@@ -196,30 +196,31 @@ function fmtMoney(n) { return new Intl.NumberFormat('fr-FR',{style:'currency',cu
 function fmtDate(d) { return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}); }
 
 // ── All 22 templates definition
-// Template preview colors (matching PDF service)
+// Template preview colors (must match PDF generatePDF colors exactly)
+// PDF colors array [R,G,B] → hex: classique=[14,13,11]→#0e0d0b, etc.
 const TPL_COLORS = {
-  classique:{bg:'#2d4a2d',text:'#ffffff',accent:'#4a7c4a'},
-  minimal:{bg:'#222222',text:'#ffffff',accent:'#555555'},
-  bold:{bg:'#111111',text:'#ffffff',accent:'#ff3c00'},
-  blue_corp:{bg:'#1a3d6b',text:'#ffffff',accent:'#2e6dc1'},
-  artisan:{bg:'#7c4b2a',text:'#ffffff',accent:'#c47a3a'},
-  tech:{bg:'#0f0f1a',text:'#7b7fff',accent:'#7b7fff'},
-  nature:{bg:'#3a5c3a',text:'#e8f5e2',accent:'#5a8c5a'},
-  luxe:{bg:'#1a1a1a',text:'#4f46e5',accent:'#4f46e5'},
-  sante:{bg:'#1565a0',text:'#ffffff',accent:'#1976d2'},
-  immobilier:{bg:'#2c3e50',text:'#ecf0f1',accent:'#34495e'},
-  event:{bg:'#8b1a6b',text:'#ffffff',accent:'#c0397a'},
-  restaurant:{bg:'#8b2e0c',text:'#fdf3e7',accent:'#c0451a'},
-  auto:{bg:'#2c2c2c',text:'#e63946',accent:'#e63946'},
-  beaute:{bg:'#f7c5d5',text:'#7b2d4e',accent:'#c4718e'},
-  juridique:{bg:'#5c0a14',text:'#f5e6d3',accent:'#8b2030'},
-  archi:{bg:'#e8e4de',text:'#2c2c2c',accent:'#8c8275'},
-  photo:{bg:'#1a1a1a',text:'#ffffff',accent:'#ffffff'},
-  transport:{bg:'#003380',text:'#ff6b00',accent:'#ff6b00'},
-  formation:{bg:'#1976d2',text:'#ffffff',accent:'#42a5f5'},
-  nettoyage:{bg:'#0097a7',text:'#ffffff',accent:'#00bcd4'},
-  it:{bg:'#0d1117',text:'#39d353',accent:'#39d353'},
-  mode:{bg:'#d4bfa0',text:'#3c2415',accent:'#a08060'},
+  classique:{bg:'#0e0d0b',text:'#ffffff',accent:'#c9a84c'},
+  minimal:{bg:'#222222',text:'#ffffff',accent:'#c9a84c'},
+  bold:{bg:'#111111',text:'#ffffff',accent:'#c9a84c'},
+  blue_corp:{bg:'#1a3d6b',text:'#ffffff',accent:'#c9a84c'},
+  artisan:{bg:'#7c4b2a',text:'#ffffff',accent:'#c9a84c'},
+  tech:{bg:'#0f0f1a',text:'#ffffff',accent:'#c9a84c'},
+  nature:{bg:'#3a5c3a',text:'#ffffff',accent:'#c9a84c'},
+  luxe:{bg:'#1a1a1a',text:'#ffffff',accent:'#c9a84c'},
+  sante:{bg:'#1565a0',text:'#ffffff',accent:'#c9a84c'},
+  immobilier:{bg:'#2c3e50',text:'#ffffff',accent:'#c9a84c'},
+  event:{bg:'#8b1a6b',text:'#ffffff',accent:'#c9a84c'},
+  restaurant:{bg:'#8b2e0c',text:'#ffffff',accent:'#c9a84c'},
+  auto:{bg:'#2c2c2c',text:'#ffffff',accent:'#c9a84c'},
+  beaute:{bg:'#f7c5d5',text:'#3c1a28',accent:'#c9a84c'},
+  juridique:{bg:'#5c0a14',text:'#ffffff',accent:'#c9a84c'},
+  archi:{bg:'#e8e4de',text:'#2c2c2c',accent:'#c9a84c'},
+  photo:{bg:'#1a1a1a',text:'#ffffff',accent:'#c9a84c'},
+  transport:{bg:'#003380',text:'#ffffff',accent:'#c9a84c'},
+  formation:{bg:'#1976d2',text:'#ffffff',accent:'#c9a84c'},
+  nettoyage:{bg:'#0097a7',text:'#ffffff',accent:'#c9a84c'},
+  it:{bg:'#0d1117',text:'#ffffff',accent:'#c9a84c'},
+  mode:{bg:'#d4bfa0',text:'#3c2415',accent:'#c9a84c'},
 };
 
 const ALL_TEMPLATES = [
@@ -1455,9 +1456,10 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
   const [template, setTemplate]=useState('classique');
   const [sigData, setSigData]=useState(null);
   const [saving, setSaving]=useState(false);
-  const [savedQuote, setSavedQuote]=useState(null);
+  const [savedQuote, setSavedQuoteState]=useState(()=>{ try{ return JSON.parse(localStorage.getItem('qLastQuote')||'null'); }catch{ return null; } });
+  function setSavedQuote(q){ setSavedQuoteState(q); if(q){ localStorage.setItem('qLastQuote',JSON.stringify(q)); } else { localStorage.removeItem('qLastQuote'); } }
   const [modal, setModal]=useState(null);
-  const [quoteNum, setQuoteNum]=useState('');
+  const [quoteNum, setQuoteNum]=useState(()=>{ try{ const q=JSON.parse(localStorage.getItem('qLastQuote')||'null'); return q?.number||''; }catch{ return ''; } });
   const [items, setItems]=useState([{description:'',qty:1,unit_price:0}]);
   const [form, setForm]=useState({company:'',client_name:'',client_address:'',client_email:'',tva_rate:20,validity_days:30,conditions:''});
   const [preview, setPreview]=useState({ht:0,tva:0,ttc:0});
@@ -1481,12 +1483,12 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
   }
 
   useEffect(()=>{
-    if(savedQuote?.id){
+    if(savedQuote?.id && user){
       loadActiveRelances(savedQuote.id, savedQuote.number||quoteNum);
       const iv=setInterval(()=>loadActiveRelances(savedQuote.id, savedQuote.number||quoteNum),30000);
       return()=>clearInterval(iv);
     }
-  },[savedQuote?.id]);
+  },[savedQuote?.id, user?.id]);
   const [pendingAction, setPendingAction]=useState(null);
 
   useEffect(()=>{
@@ -1560,7 +1562,8 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
         tva_rate:parseFloat(form.tva_rate),
         validity_days:parseInt(form.validity_days),
         number:quote.number,
-        id:quote.id
+        id:quote.id,
+        template_id:template
       };
       const doc=generatePDF(quoteData,user,sigData);
       doc.save((quote.number||'devis')+'.pdf');
