@@ -482,6 +482,156 @@ function generatePDF(quote, user, sigDataUrl=null) {
   return doc;
 }
 
+// ── Shared document renderer (HTML mirror of generatePDF — same look)
+const PDF_ACCENTS = {
+  classique:'#141416', moderne:'#5850ec', artisan:'#b2622a', minimal:'#222',
+  bold:'#111', blue_corp:'#1a56a0', tech:'#6366f1', nature:'#3a8c5a',
+  luxe:'#a67c2e', sante:'#0ea5a0', immobilier:'#334763', event:'#b9378c',
+  restaurant:'#c85028', auto:'#3c3c40', beaute:'#e06ca0', juridique:'#961e34',
+  archi:'#6e6e6c', photo:'#1c1c1e', transport:'#145ac8', formation:'#2576d2',
+  nettoyage:'#00aab4', it:'#3c508c', mode:'#b48c5a', default:'#141416'
+};
+
+function QuoteDocumentHTML({ quote, user, items, sigData, scale=1 }) {
+  // PDF mirror — A4 ratio, neutral editorial look
+  const tpl = (quote?.template_id||quote?.template||'classique').toLowerCase();
+  const acc = PDF_ACCENTS[tpl] || PDF_ACCENTS.default;
+  const INK='#111113', SUB='#6e6e76', MUTED='#9c9ca3', HAIR='#e8e8ec', SOFT='#f8f8fa';
+  const tvaRate = Number(quote?.tva_rate)||20;
+  const ht = (items||[]).reduce((s,i)=>s+(Number(i.qty)||0)*(Number(i.unit_price)||0),0);
+  const tva = ht*tvaRate/100;
+  const ttc = ht+tva;
+  const dDate = new Date(quote?.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+  const dEnd = (()=>{const e=new Date();e.setDate(e.getDate()+(Number(quote?.validity_days)||30));return e.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});})();
+  const fmt = n => { const v=Number(n)||0; const [a,b]=Math.abs(v).toFixed(2).split('.'); return (v<0?'-':'')+a.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+','+b+' \u20AC'; };
+
+  const baseFont = 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif';
+  const root = {
+    background:'#fff', color:INK, fontFamily:baseFont,
+    fontSize: 12*scale, lineHeight:1.45,
+    padding: `${28*scale}px ${32*scale}px`, boxSizing:'border-box',
+    width:'100%', maxWidth: 760*scale,
+  };
+
+  return (
+    <div style={root}>
+      {/* HEADER */}
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+          <span style={{display:'inline-block',width:10*scale,height:10*scale,borderRadius:'50%',background:acc,flexShrink:0}}/>
+          <div style={{fontWeight:700,fontSize:15*scale,color:INK,letterSpacing:'-.01em',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{quote?.company_name||user?.name||'Votre entreprise'}</div>
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontSize:9*scale,color:MUTED,letterSpacing:'.18em',fontWeight:500}}>DEVIS</div>
+          <div style={{fontWeight:700,fontSize:15*scale,color:INK,marginTop:2}}>{quote?.number||'DEV-001'}</div>
+        </div>
+      </div>
+
+      <div style={{height:1,background:HAIR,margin:`${18*scale}px 0 ${16*scale}px`}}/>
+
+      {/* META 4 cols */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:22*scale}}>
+        {[
+          ['ÉMIS LE', dDate],
+          ['VALIDITÉ', `${quote?.validity_days||30} jours`],
+          ['ÉCHÉANCE', dEnd],
+          ['RÉFÉRENCE', quote?.number||'—'],
+        ].map(([k,v])=>(
+          <div key={k}>
+            <div style={{fontSize:9*scale,color:MUTED,letterSpacing:'.14em',fontWeight:500}}>{k}</div>
+            <div style={{fontWeight:600,fontSize:12*scale,color:INK,marginTop:4}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* DE / POUR */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,marginBottom:22*scale}}>
+        <div>
+          <div style={{fontSize:9*scale,color:MUTED,letterSpacing:'.14em',fontWeight:500,marginBottom:4}}>DE</div>
+          <div style={{fontWeight:700,fontSize:13*scale,color:INK}}>{quote?.company_name||user?.name||'—'}</div>
+          {user?.email && <div style={{fontSize:11*scale,color:SUB,marginTop:2}}>{user.email}</div>}
+          {quote?.company_address && <div style={{fontSize:11*scale,color:SUB,marginTop:2,whiteSpace:'pre-line'}}>{quote.company_address}</div>}
+        </div>
+        <div>
+          <div style={{fontSize:9*scale,color:MUTED,letterSpacing:'.14em',fontWeight:500,marginBottom:4}}>POUR</div>
+          <div style={{fontWeight:700,fontSize:13*scale,color:INK}}>{quote?.client_name||'—'}</div>
+          {quote?.client_email && <div style={{fontSize:11*scale,color:SUB,marginTop:2}}>{quote.client_email}</div>}
+          {quote?.client_address && <div style={{fontSize:11*scale,color:SUB,marginTop:2,whiteSpace:'pre-line'}}>{quote.client_address}</div>}
+        </div>
+      </div>
+
+      {/* TABLE */}
+      <div style={{borderTop:`1px solid ${HAIR}`}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 60px 100px 110px',padding:`${10*scale}px 0`,borderBottom:`1px solid ${HAIR}`,fontSize:9*scale,color:MUTED,letterSpacing:'.14em',fontWeight:500}}>
+          <div>DESCRIPTION</div>
+          <div style={{textAlign:'center'}}>QTÉ</div>
+          <div style={{textAlign:'right'}}>PRIX UNIT.</div>
+          <div style={{textAlign:'right'}}>MONTANT</div>
+        </div>
+        {(items||[]).length===0 ? (
+          <div style={{padding:`${14*scale}px 0`,fontStyle:'italic',color:MUTED,fontSize:11*scale}}>Aucune ligne</div>
+        ) : (items||[]).map((it,i)=>{
+          const total=(Number(it.qty)||0)*(Number(it.unit_price)||0);
+          return (
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 100px 110px',padding:`${10*scale}px 0`,borderBottom:`1px solid ${HAIR}`,fontSize:12*scale,alignItems:'start'}}>
+              <div style={{color:INK,paddingRight:8,wordBreak:'break-word'}}>{it.description||'—'}</div>
+              <div style={{textAlign:'center',color:SUB}}>{it.qty}</div>
+              <div style={{textAlign:'right',color:SUB}}>{fmt(it.unit_price)}</div>
+              <div style={{textAlign:'right',fontWeight:700,color:INK}}>{fmt(total)}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* TOTAUX */}
+      <div style={{display:'flex',justifyContent:'flex-end',marginTop:18*scale}}>
+        <div style={{width:'min(320px,60%)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',padding:`${5*scale}px 4px`,fontSize:12*scale,color:SUB}}>
+            <span>Sous-total HT</span><span style={{color:INK,fontWeight:600}}>{fmt(ht)}</span>
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',padding:`${5*scale}px 4px`,fontSize:12*scale,color:SUB}}>
+            <span>TVA ({tvaRate}%)</span><span style={{color:INK,fontWeight:600}}>{fmt(tva)}</span>
+          </div>
+          <div style={{height:1,background:HAIR,margin:`${6*scale}px 0`}}/>
+          <div style={{position:'relative',background:SOFT,borderRadius:6,padding:`${12*scale}px ${14*scale}px`,display:'flex',justifyContent:'space-between',alignItems:'center',overflow:'hidden'}}>
+            <span style={{position:'absolute',left:0,top:0,bottom:0,width:3,background:acc}}/>
+            <span style={{fontSize:10*scale,color:MUTED,letterSpacing:'.14em',fontWeight:600}}>TOTAL TTC</span>
+            <span style={{fontWeight:700,fontSize:16*scale,color:INK}}>{fmt(ttc)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* CONDITIONS */}
+      {quote?.conditions && (
+        <div style={{marginTop:24*scale}}>
+          <div style={{fontSize:9*scale,color:MUTED,letterSpacing:'.14em',fontWeight:500,marginBottom:6}}>CONDITIONS</div>
+          <div style={{fontSize:11*scale,color:SUB,whiteSpace:'pre-line',lineHeight:1.6}}>{quote.conditions}</div>
+        </div>
+      )}
+
+      {/* SIGNATURE */}
+      {sigData && (
+        <div style={{marginTop:24*scale}}>
+          <div style={{fontSize:9*scale,color:MUTED,letterSpacing:'.14em',fontWeight:500,marginBottom:6}}>SIGNATURE CLIENT — BON POUR ACCORD</div>
+          <div style={{border:`1px solid ${HAIR}`,borderRadius:6,padding:8,display:'inline-block',background:'#fff'}}>
+            <img src={sigData} alt="signature" style={{height:60*scale,maxWidth:200*scale,objectFit:'contain',display:'block'}}/>
+          </div>
+          <div style={{fontSize:10*scale,color:SUB,marginTop:6}}>Signé électroniquement le {new Date().toLocaleDateString('fr-FR')}</div>
+        </div>
+      )}
+
+      {/* FOOTER */}
+      <div style={{borderTop:`1px solid ${HAIR}`,marginTop:28*scale,paddingTop:10*scale,display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:10*scale,color:MUTED}}>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <span style={{display:'inline-block',width:5,height:5,borderRadius:'50%',background:acc}}/>
+          <span>{quote?.company_name||user?.name||'Defact'} · Document confidentiel</span>
+        </div>
+        <div>Page 1</div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════
 // AUTH MODAL
 // ═══════════════════════════════════
@@ -1833,82 +1983,29 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
           </div>
         </div>
 
-        {/* RIGHT — Preview */}
+        {/* RIGHT — Preview (mirrors PDF exactly) */}
         <div style={{position:'sticky',top:80}}>
           <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid rgba(79,70,229,.15)'}}>
             <div style={{background:'#f8fafc',padding:'14px 18px',borderBottom:'1px solid rgba(79,70,229,.12)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               <div>
                 <div style={{fontWeight:700,fontSize:13,color:'#4f46e5'}}>Aperçu du devis</div>
-                <div style={{fontSize:11,color:'#64748b',marginTop:2}}>Template : {tpl?.label} · {tpl?.sector}</div>
+                <div style={{fontSize:11,color:'#64748b',marginTop:2}}>Identique au PDF · Template : {tpl?.label}</div>
               </div>
               <div style={{fontSize:10,color:'#4f46e5',border:'1px solid rgba(79,70,229,.25)',borderRadius:6,padding:'3px 8px'}}>LIVE</div>
             </div>
-
-            {(()=>{ const tc=TPL_COLORS[template]||{bg:'#0e0d0b',text:'#ffffff',accent:'#4f46e5'}; return (
-            <div id="pdfPreview" style={{padding:18,background:'#fff',transition:'all .3s'}}>
-              {/* Preview header — dynamic template colors */}
-              <div style={{background:tc.bg,borderRadius:8,padding:'12px 14px',marginBottom:0,display:'flex',justifyContent:'space-between',alignItems:'flex-start',transition:'background .3s'}}>
-                <div>
-                  <div style={{fontWeight:700,fontSize:15,color:tc.text,fontFamily:'Inter,sans-serif'}}>{form.company||'Votre entreprise'}</div>
-                  <div style={{fontSize:11,color:tc.accent,marginTop:2}}>Devis professionnel</div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontWeight:700,fontSize:13,color:tc.accent}}>{quoteNum||'DEV-—'}</div>
-                  <div style={{fontSize:11,color:tc.text,opacity:.7}}>{new Date().toLocaleDateString('fr-FR')}</div>
-                </div>
+            <div id="pdfPreview" style={{background:'#f4f4f6',padding:14}}>
+              <div style={{background:'#fff',boxShadow:'0 4px 24px rgba(15,15,20,.08)',borderRadius:4,overflow:'hidden'}}>
+                <QuoteDocumentHTML
+                  quote={{...form, template_id:template, number:quoteNum, created_at:new Date().toISOString()}}
+                  user={user}
+                  items={items.filter(i=>i.description||i.qty||i.unit_price)}
+                  sigData={sigData}
+                  scale={0.85}
+                />
               </div>
-              <div style={{height:3,background:tc.accent,marginBottom:14,borderRadius:'0 0 4px 4px',transition:'background .3s'}}/>
-
-              <div style={{background:'#f5f3ee',borderRadius:8,padding:'10px 12px',marginBottom:14,fontSize:12}}>
-                <div style={{fontWeight:700,color:'#64748b',fontSize:10,marginBottom:4,letterSpacing:'.06em',textTransform:'uppercase'}}>Client</div>
-                <div style={{fontWeight:600,color:'#1e293b'}}>{form.client_name||'—'}</div>
-                {form.client_address&&<div style={{color:'#64748b',fontSize:11,marginTop:2}}>{form.client_address}</div>}
-              </div>
-
-              <table style={{width:'100%',marginBottom:14,fontSize:12,borderCollapse:'collapse'}}>
-                <thead>
-                  <tr style={{background:tc.bg}}>
-                    <th style={{padding:'7px 8px',textAlign:'left',color:tc.accent,fontWeight:600,fontSize:10,letterSpacing:'.05em',borderRadius:'4px 0 0 4px'}}>DÉSIGNATION</th>
-                    <th style={{padding:'7px 4px',textAlign:'center',color:tc.accent,fontWeight:600,fontSize:10,letterSpacing:'.05em'}}>QTÉ</th>
-                    <th style={{padding:'7px 8px',textAlign:'right',color:tc.accent,fontWeight:600,fontSize:10,letterSpacing:'.05em',borderRadius:'0 4px 4px 0'}}>TOTAL HT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.filter(i=>i.description).map((item,i)=>(
-                    <tr key={i} style={{background:i%2===0?'#fff':'#f7f5f0'}}>
-                      <td style={{padding:'6px 8px',color:'#1e1c19',borderBottom:'1px solid #eee'}}>{item.description}</td>
-                      <td style={{padding:'6px 4px',textAlign:'center',color:'#64748b',borderBottom:'1px solid #eee'}}>{item.qty}</td>
-                      <td style={{padding:'6px 8px',textAlign:'right',fontWeight:600,color:'#1e293b',borderBottom:'1px solid #eee'}}>{fmtMoney((item.qty||0)*(item.unit_price||0))}</td>
-                    </tr>
-                  ))}
-                  {!items.some(i=>i.description)&&<tr><td colSpan={3} style={{padding:'16px 8px',textAlign:'center',color:'#ccc',fontSize:12}}>Aucune prestation</td></tr>}
-                </tbody>
-              </table>
-
-              <div style={{borderTop:'1px solid #e8e3d8',paddingTop:10}}>
-                {[{l:`Total HT`,v:fmtMoney(preview.ht)},{l:`TVA (${form.tva_rate}%)`,v:fmtMoney(preview.tva)}].map((r,i)=>(
-                  <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#64748b',marginBottom:4}}>
-                    <span>{r.l}</span><span>{r.v}</span>
-                  </div>
-                ))}
-                <div style={{display:'flex',justifyContent:'space-between',background:tc.bg,color:tc.accent,borderRadius:6,padding:'9px 10px',marginTop:6,fontWeight:700,fontSize:13,transition:'background .3s'}}>
-                  <span>TOTAL TTC</span><span>{fmtMoney(preview.ttc)}</span>
-                </div>
-              </div>
-
-              {sigData&&(
-                <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid #e8e3d8'}}>
-                  <div style={{fontSize:10,color:'#64748b',fontWeight:600,marginBottom:4,textTransform:'uppercase',letterSpacing:'.06em'}}>Signature client</div>
-                  <div style={{background:'#fff',border:'1px solid #e8e3d8',borderRadius:6,padding:4,display:'inline-block'}}>
-                    <img src={sigData} alt="signature" style={{height:40,maxWidth:120,objectFit:'contain',display:'block'}} />
-                  </div>
-                </div>
-              )}
             </div>
-            ); })()}
           </div>
         </div>
-      </div>
 
       {modal==='sig'&&<SignatureModal onClose={()=>setModal(null)} onSign={async data=>{setSigData(data);toast('Signature enregistrée ✦');if(user&&user.plan==='starter'){try{const d=await api('/quotes/quota/status');setQuota(d);}catch(_){}}}} />}
       {modal==='email'&&<EmailModal onClose={()=>setModal(null)} quote={savedQuote||{...form,items}} user={user} sigData={sigData} />}
@@ -2570,24 +2667,9 @@ function SignPage({token}) {
         alreadyRefused
           ? React.createElement('div',{style:{background:'#fef2f2',color:'#991b1b',padding:'12px 16px',borderRadius:8,textAlign:'center',fontWeight:600,marginBottom:20}},'✋ Ce devis a été refusé.')
           : null,
-        React.createElement('div',{style:{background:'#f8fafc',borderRadius:8,padding:16,marginBottom:20}},
-          items.length===0
-            ? React.createElement('div',{style:{padding:'6px 0',fontSize:13,color:'#94a3b8',fontStyle:'italic'}},'(aucune ligne détaillée)')
-            : items.map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',gap:12,padding:'6px 0',borderBottom:i<items.length-1?'1px solid #e2e8f0':'none',fontSize:14}},
-              React.createElement('span',{style:{color:'#1e293b',flex:1}},it.description||'(sans description)'),
-              React.createElement('span',{style:{color:'#64748b',whiteSpace:'nowrap'}},it.qty+' × '+fmt(it.unit_price))
-            )),
-          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'8px 0 0',fontSize:13,color:'#64748b',marginTop:items.length===0?0:8,borderTop:items.length===0?'none':'1px dashed #e2e8f0'}},
-            React.createElement('span',null,'Total HT'),
-            React.createElement('span',null,fmt(ht))
-          ),
-          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:13,color:'#64748b'}},
-            React.createElement('span',null,'TVA ('+tvaRate+'%)'),
-            React.createElement('span',null,fmt(tva))
-          ),
-          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'10px 0 0',fontWeight:700,fontSize:16,borderTop:'2px solid #e2e8f0',marginTop:6}},
-            React.createElement('span',null,'Total TTC'),
-            React.createElement('span',{style:{color:'#4f46e5'}},fmt(ttc))
+        React.createElement('div',{style:{background:'#f4f4f6',borderRadius:10,padding:10,marginBottom:20}},
+          React.createElement('div',{style:{background:'#fff',borderRadius:6,boxShadow:'0 4px 16px rgba(15,15,20,.06)',overflow:'hidden'}},
+            React.createElement(QuoteDocumentHTML,{quote:quote,user:{name:quote.company_name,email:quote.company_email},items:items,sigData:null,scale:0.78})
           )
         ),
         !locked&&React.createElement('div',null,
