@@ -2380,6 +2380,9 @@ function SignPage({token}) {
   const canvasRef=React.useRef(null);
   const [drawing, setDrawing]=useState(false);
   const [hasSig, setHasSig]=useState(false);
+  const [refused, setRefused]=useState(false);
+  const [refusing, setRefusing]=useState(false);
+  const [refuseReason, setRefuseReason]=useState('');
 
   useEffect(()=>{
     fetch(`${API}/sign/${token}`)
@@ -2388,20 +2391,26 @@ function SignPage({token}) {
       .catch(()=>{ setError('Erreur de connexion.'); setLoading(false); });
   },[token]);
 
-  function startDraw(e){
-    setDrawing(true);
+  // Get coords scaled to canvas internal resolution (fixes offset on responsive canvas)
+  function getPos(e){
     const c=canvasRef.current; const r=c.getBoundingClientRect();
-    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
-    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
-    const ctx=c.getContext('2d'); ctx.beginPath(); ctx.moveTo(x,y);
+    const sx=c.width/r.width, sy=c.height/r.height;
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    return { x:(cx-r.left)*sx, y:(cy-r.top)*sy };
+  }
+  function startDraw(e){
+    e.preventDefault();
+    setDrawing(true);
+    const p=getPos(e);
+    const ctx=canvasRef.current.getContext('2d'); ctx.beginPath(); ctx.moveTo(p.x,p.y);
   }
   function draw(e){
     if(!drawing) return;
     e.preventDefault();
-    const c=canvasRef.current; const r=c.getBoundingClientRect();
-    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
-    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
-    const ctx=c.getContext('2d'); ctx.lineTo(x,y); ctx.strokeStyle='#1e293b'; ctx.lineWidth=2; ctx.stroke();
+    const p=getPos(e);
+    const ctx=canvasRef.current.getContext('2d');
+    ctx.lineTo(p.x,p.y); ctx.strokeStyle='#1e293b'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
     setHasSig(true);
   }
   function endDraw(){ setDrawing(false); }
@@ -2415,6 +2424,17 @@ function SignPage({token}) {
     const d=await res.json();
     if(d.error){ alert(d.error); return; }
     setSigned(true);
+  }
+
+  async function submitRefuse(){
+    if(!confirm('Êtes-vous sûr de vouloir refuser ce devis ? Cette action est définitive.')) return;
+    setRefusing(true);
+    try{
+      const res=await fetch(`${API}/sign/${token}/refuse`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:refuseReason,signer_name:signerName})});
+      const d=await res.json();
+      if(d.error){ alert(d.error); setRefusing(false); return; }
+      setRefused(true);
+    }catch(_){ alert('Erreur de connexion.'); setRefusing(false); }
   }
 
   if(loading) return React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',color:'#64748b'}},'Chargement...');
@@ -2436,6 +2456,16 @@ function SignPage({token}) {
     React.createElement('p',{style:{color:'#64748b',maxWidth:400}},'Merci '+signerName+'. Le devis '+quote.number+' a bien été signé. '+quote.company_name+' a été notifié.')
   );
 
+  if(refused) return React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',gap:16,padding:24,textAlign:'center'}},
+    React.createElement('div',{style:{fontSize:64}},'✋'),
+    React.createElement('h2',{style:{color:'#ef4444',margin:0,fontSize:24}},'Devis refusé'),
+    React.createElement('p',{style:{color:'#64748b',maxWidth:400}},'Le devis '+quote.number+' a été refusé. '+quote.company_name+' a été notifié.')
+  );
+
+  const alreadySigned=quote.status==='accepted';
+  const alreadyRefused=quote.status==='refused';
+  const locked=alreadySigned||alreadyRefused;
+
   return React.createElement('div',{style:{fontFamily:'Inter,sans-serif',minHeight:'100vh',background:'#f8fafc',padding:'24px 16px'}},
     React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
       React.createElement('div',{style:{background:'#4f46e5',color:'white',borderRadius:'12px 12px 0 0',padding:'20px 24px',textAlign:'center'}},
@@ -2445,8 +2475,11 @@ function SignPage({token}) {
       React.createElement('div',{style:{background:'white',borderRadius:'0 0 12px 12px',padding:24,boxShadow:'0 4px 24px rgba(0,0,0,.08)'}},
         React.createElement('h2',{style:{margin:'0 0 4px',fontSize:20,color:'#1e293b'}},'Devis '+quote.number),
         React.createElement('p',{style:{margin:'0 0 20px',color:'#64748b',fontSize:14}},quote.company_name+' vous a envoyé un devis'),
-        quote.status==='accepted'
+        alreadySigned
           ? React.createElement('div',{style:{background:'#d1fae5',color:'#065f46',padding:'12px 16px',borderRadius:8,textAlign:'center',fontWeight:600,marginBottom:20}},'✅ Ce devis a déjà été signé.')
+          : null,
+        alreadyRefused
+          ? React.createElement('div',{style:{background:'#fef2f2',color:'#991b1b',padding:'12px 16px',borderRadius:8,textAlign:'center',fontWeight:600,marginBottom:20}},'✋ Ce devis a été refusé.')
           : null,
         React.createElement('div',{style:{background:'#f8fafc',borderRadius:8,padding:16,marginBottom:20}},
           items.map((it,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:i<items.length-1?'1px solid #e2e8f0':'none',fontSize:14}},
@@ -2458,7 +2491,7 @@ function SignPage({token}) {
             React.createElement('span',{style:{color:'#4f46e5'}},fmt(ttc))
           )
         ),
-        quote.status!=='accepted'&&React.createElement('div',null,
+        !locked&&React.createElement('div',null,
           React.createElement('div',{style:{marginBottom:12}},
             React.createElement('label',{style:{display:'block',fontSize:13,color:'#64748b',marginBottom:6,fontWeight:500}},'Votre nom'),
             React.createElement('input',{style:{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:14,boxSizing:'border-box'},placeholder:'Prénom Nom',value:signerName,onChange:e=>setSignerName(e.target.value)})
@@ -2470,6 +2503,13 @@ function SignPage({token}) {
           React.createElement('button',{onClick:clearSig,style:{fontSize:12,color:'#64748b',background:'none',border:'none',cursor:'pointer',marginTop:4,padding:0}},'Effacer'),
           React.createElement('button',{onClick:submitSign,disabled:!hasSig,style:{display:'block',width:'100%',marginTop:16,padding:'14px',background:hasSig?'#4f46e5':'#e2e8f0',color:hasSig?'white':'#94a3b8',border:'none',borderRadius:8,fontSize:16,fontWeight:700,cursor:hasSig?'pointer':'not-allowed'}},
             '✍️ Signer et accepter le devis'
+          ),
+          React.createElement('div',{style:{marginTop:24,paddingTop:20,borderTop:'1px solid #e2e8f0'}},
+            React.createElement('p',{style:{margin:'0 0 8px',fontSize:13,color:'#64748b',fontWeight:500}},'Vous ne souhaitez pas accepter ce devis ?'),
+            React.createElement('textarea',{value:refuseReason,onChange:e=>setRefuseReason(e.target.value),placeholder:'Motif du refus (facultatif)',rows:2,style:{width:'100%',padding:'10px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,boxSizing:'border-box',resize:'vertical',fontFamily:'inherit',marginBottom:8}}),
+            React.createElement('button',{onClick:submitRefuse,disabled:refusing,style:{display:'block',width:'100%',padding:'12px',background:'white',color:'#ef4444',border:'1.5px solid #fecaca',borderRadius:8,fontSize:14,fontWeight:600,cursor:refusing?'wait':'pointer'}},
+              refusing?'Envoi…':'✋ Refuser ce devis'
+            )
           )
         )
       )
