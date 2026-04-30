@@ -2380,6 +2380,7 @@ function SignPage({token}) {
   const canvasRef=React.useRef(null);
   const [drawing, setDrawing]=useState(false);
   const [hasSig, setHasSig]=useState(false);
+  const [signing, setSigning]=useState(false);
   const [refused, setRefused]=useState(false);
   const [refusing, setRefusing]=useState(false);
   const [refuseReason, setRefuseReason]=useState('');
@@ -2417,13 +2418,22 @@ function SignPage({token}) {
   function clearSig(){ const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height); setHasSig(false); }
 
   async function submitSign(){
+    if(signing) return;
     if(!hasSig){ alert('Veuillez signer dans le cadre'); return; }
     const data=canvasRef.current.toDataURL('image/png');
     setSigData(data);
-    const res=await fetch(`${API}/sign/${token}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature_data:data,signer_name:signerName})});
-    const d=await res.json();
-    if(d.error){ alert(d.error); return; }
-    setSigned(true);
+    setSigning(true);
+    try{
+      const res=await fetch(`${API}/sign/${token}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature_data:data,signer_name:signerName})});
+      const d=await res.json().catch(()=>({}));
+      const err=(d.error||'').toString();
+      if(!res.ok||d.error){
+        if(res.status===409&&err.toLowerCase().includes('déjà signé')&&!alreadySigned){ setSigned(true); return; }
+        alert(err||'Erreur serveur.'); setSigning(false); return;
+      }
+      setQuote(q=>q?{...q,status:'accepted',signed_at:d.signed_at||new Date().toISOString(),signer_name:signerName}:q);
+      setSigned(true);
+    }catch(_){ alert('Erreur de connexion.'); setSigning(false); }
   }
 
   async function submitRefuse(){
@@ -2431,8 +2441,13 @@ function SignPage({token}) {
     setRefusing(true);
     try{
       const res=await fetch(`${API}/sign/${token}/refuse`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:refuseReason,signer_name:signerName})});
-      const d=await res.json();
-      if(d.error){ alert(d.error); setRefusing(false); return; }
+      const d=await res.json().catch(()=>({}));
+      const err=(d.error||'').toString();
+      if(!res.ok||d.error){
+        if(res.status===409&&err.toLowerCase().includes('déjà refusé')&&!alreadyRefused){ setRefused(true); return; }
+        alert(err||'Erreur serveur.'); setRefusing(false); return;
+      }
+      setQuote(q=>q?{...q,status:'refused',refused_at:d.refused_at||new Date().toISOString(),refused_reason:refuseReason}:q);
       setRefused(true);
     }catch(_){ alert('Erreur de connexion.'); setRefusing(false); }
   }
@@ -2453,7 +2468,7 @@ function SignPage({token}) {
   if(signed) return React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',gap:16,padding:24,textAlign:'center'}},
     React.createElement('div',{style:{fontSize:64}},'✅'),
     React.createElement('h2',{style:{color:'#10b981',margin:0,fontSize:24}},'Devis signé !'),
-    React.createElement('p',{style:{color:'#64748b',maxWidth:400}},'Merci '+signerName+'. Le devis '+quote.number+' a bien été signé. '+quote.company_name+' a été notifié.')
+    React.createElement('p',{style:{color:'#64748b',maxWidth:400}},'Merci '+(signerName||quote.client_name||'à vous')+'. Le devis '+quote.number+' a bien été signé. '+quote.company_name+' a été notifié.')
   );
 
   if(refused) return React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Inter,sans-serif',gap:16,padding:24,textAlign:'center'}},
@@ -2501,8 +2516,8 @@ function SignPage({token}) {
             onMouseDown:startDraw,onMouseMove:draw,onMouseUp:endDraw,onMouseLeave:endDraw,
             onTouchStart:startDraw,onTouchMove:draw,onTouchEnd:endDraw}),
           React.createElement('button',{onClick:clearSig,style:{fontSize:12,color:'#64748b',background:'none',border:'none',cursor:'pointer',marginTop:4,padding:0}},'Effacer'),
-          React.createElement('button',{onClick:submitSign,disabled:!hasSig,style:{display:'block',width:'100%',marginTop:16,padding:'14px',background:hasSig?'#4f46e5':'#e2e8f0',color:hasSig?'white':'#94a3b8',border:'none',borderRadius:8,fontSize:16,fontWeight:700,cursor:hasSig?'pointer':'not-allowed'}},
-            '✍️ Signer et accepter le devis'
+          React.createElement('button',{onClick:submitSign,disabled:!hasSig||signing,style:{display:'block',width:'100%',marginTop:16,padding:'14px',background:hasSig&&!signing?'#4f46e5':'#e2e8f0',color:hasSig&&!signing?'white':'#94a3b8',border:'none',borderRadius:8,fontSize:16,fontWeight:700,cursor:hasSig&&!signing?'pointer':'not-allowed'}},
+            signing?'Signature en cours…':'✍️ Signer et accepter le devis'
           ),
           React.createElement('div',{style:{marginTop:24,paddingTop:20,borderTop:'1px solid #e2e8f0'}},
             React.createElement('p',{style:{margin:'0 0 8px',fontSize:13,color:'#64748b',fontWeight:500}},'Vous ne souhaitez pas accepter ce devis ?'),
