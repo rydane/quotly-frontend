@@ -1021,7 +1021,7 @@ function RelanceModal({onClose, quote, user}) {
   }
 
   async function sendNow(){
-    if(!newEmail||!newEmail.includes('@')){ toast('Email client requis — renseignez l'email du client','error'); return; }
+    if(!newEmail||!newEmail.includes('@')){ toast("Email client requis — renseignez l'email du client",'error'); return; }
     if(!quote?.id){ toast("Sauvegardez d'abord le devis depuis la page principale",'info'); return; }
     setSendingNow(true);
     try{
