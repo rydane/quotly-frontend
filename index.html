@@ -287,7 +287,7 @@ function generatePDF(quote, user, sigDataUrl=null) {
   doc.text(quote.company_name||user?.name||'Votre Entreprise', M, 20);
   doc.setFontSize(9); doc.setFont('helvetica','normal');
   doc.setTextColor(...headerSubRgb);
-  doc.text('Devis professionnel · Defact', M, 29);
+  doc.text('Devis professionnel · Quotly', M, 29);
 
   doc.setTextColor(...headerTextRgb);
   doc.setFontSize(13); doc.setFont('helvetica','bold');
@@ -438,9 +438,9 @@ function generatePDF(quote, user, sigDataUrl=null) {
   doc.setFillColor(201,168,76);
   doc.rect(0,284,W,1,'F');
   doc.setFontSize(7); doc.setTextColor(180,170,150); doc.setFont('helvetica','normal');
-  doc.text('Genere avec Defact · Document confidentiel', M, 291);
+  doc.text('Genere avec Quotly · Document confidentiel', M, 291);
   doc.setTextColor(201,168,76);
-  doc.text('defact.vercel.app', W-M, 291,{align:'right'});
+  doc.text('quotly.fr', W-M, 291,{align:'right'});
 
   return doc;
 }
@@ -961,12 +961,7 @@ function RelanceModal({onClose, quote, user}) {
   const isTeam=user&&user.plan==='team';
   const planLabel=isTeam?'Plan Équipe ◆':'Plan Pro ✦';
 
-  useEffect(()=>{ 
-    loadRelances(); 
-    // Polling toutes les 30s pour mettre à jour le statut des relances
-    const poll=setInterval(()=>{ if(quote?.id) loadRelances(); }, 30000);
-    return()=>clearInterval(poll);
-  },[]);
+  useEffect(()=>{ loadRelances(); },[]);
 
   async function loadRelances(){
     setLoading(true);
@@ -1040,18 +1035,13 @@ function RelanceModal({onClose, quote, user}) {
   const activeCount=relances.filter(r=>r.active).length;
   const totalSent=history.filter(h=>h.status==='sent').length;
 
-  function CountdownTimer({nextSendAt, onExpire}){
+  function CountdownTimer({nextSendAt}){
     const [cd,setCd]=useState('');
     useEffect(()=>{
       if(!nextSendAt) return;
-      let expired=false;
       const tick=()=>{
         const diff=new Date(nextSendAt)-new Date();
-        if(diff<=0){
-          setCd('Envoi en cours…');
-          if(!expired){ expired=true; if(onExpire) setTimeout(onExpire,5000); }
-          return;
-        }
+        if(diff<=0){setCd('Envoi imminent…');return;}
         const h=Math.floor(diff/3600000);
         const m=Math.floor((diff%3600000)/60000);
         const s=Math.floor((diff%60000)/1000);
@@ -1124,7 +1114,7 @@ function RelanceModal({onClose, quote, user}) {
                             {r.active&&r.next_send_at&&sentForThis<r.max_count&&(
                               <div style={{fontSize:11,color:'#64748b',marginTop:6,marginLeft:16,display:'flex',alignItems:'center',gap:4}}>
                                 <span>⏱ Prochain dans :</span>
-                                <CountdownTimer nextSendAt={r.next_send_at} onExpire={loadRelances}/>
+                                <CountdownTimer nextSendAt={r.next_send_at}/>
                               </div>
                             )}
                             {sentForThis>=r.max_count&&(
@@ -1473,6 +1463,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
   const [preview, setPreview]=useState({ht:0,tva:0,ttc:0});
   const [quota, setQuota]=useState(null);
   const [showQuotaConfirm, setShowQuotaConfirm]=useState(false);
+  const [activeRelances, setActiveRelances]=useState([]);
   const [pendingAction, setPendingAction]=useState(null);
 
   useEffect(()=>{
@@ -1499,6 +1490,22 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
     setTemplate(id);
     if(PRO_TPLS.includes(id)&&!isPro()) toast('Aperçu activé — Plan Pro requis pour télécharger','info');
   }
+
+  async function loadActiveRelances(quoteId){
+    if(!quoteId||!user||!isPro()) return;
+    try{
+      const d=await api(`/quotes/${quoteId}/relances`);
+      const active=(d.relances||[]).filter(r=>r.active&&r.next_send_at&&r.sent_count<r.max_count);
+      setActiveRelances(active);
+    }catch(_){ setActiveRelances([]); }
+  }
+
+  useEffect(()=>{
+    if(savedQuote?.id) loadActiveRelances(savedQuote.id);
+    // Refresh every 30s
+    const iv=setInterval(()=>{ if(savedQuote?.id) loadActiveRelances(savedQuote.id); },30000);
+    return()=>clearInterval(iv);
+  },[savedQuote?.id]);
 
   async function saveQuote(){
     if(!form.company||!form.client_name||items.every(i=>!i.description)){ toast('Remplissez entreprise, client et au moins une prestation','error'); return null; }
@@ -1546,8 +1553,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
         tva_rate:parseFloat(form.tva_rate),
         validity_days:parseInt(form.validity_days),
         number:quote.number,
-        id:quote.id,
-        template_id:template
+        id:quote.id
       };
       const doc=generatePDF(quoteData,user,sigData);
       doc.save((quote.number||'devis')+'.pdf');
@@ -1730,6 +1736,23 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
                 <span style={{marginLeft:6,fontSize:11,color:'#64748b'}}> · Plan Équipe</span>
               )}
             </button>
+
+            {/* Bandeau timer relances actives */}
+            {activeRelances.length>0&&activeRelances.map(r=>(
+              <div key={r.id} style={{gridColumn:'1/-1',background:'linear-gradient(135deg,#f5f3ff,#eef2ff)',border:'1.5px solid #c7d2fe',borderRadius:12,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
+                  <span style={{fontSize:18}}>⏱</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:600,color:'#6d28d9',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>Relance automatique active</div>
+                    <div style={{fontSize:12,color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>→ {r.client_email} · {r.sent_count}/{r.max_count} envoyées</div>
+                  </div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <div style={{fontSize:10,color:'#94a3b8',marginBottom:2}}>Prochain envoi dans</div>
+                  <RelanceCountdown nextSendAt={r.next_send_at} onExpire={()=>loadActiveRelances(savedQuote?.id)}/>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1814,7 +1837,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
       {modal==='email'&&<EmailModal onClose={()=>setModal(null)} quote={savedQuote||{...form,items}} user={user} sigData={sigData} />}
       {modal==='stats'&&<StatsModal onClose={()=>setModal(null)} />}
       {modal==='gallery'&&<TemplateGallery onClose={()=>setModal(null)} onSelect={selectTemplate} current={template} isPro={isPro()} onShowUpgrade={onShowUpgrade} />}
-      {modal==='relance'&&<RelanceModal onClose={()=>setModal(null)} quote={savedQuote||{client_email:form.client_email,client_name:form.client_name}} user={user} />}
+      {modal==='relance'&&<RelanceModal onClose={()=>{ setModal(null); if(savedQuote?.id) loadActiveRelances(savedQuote.id); }} quote={savedQuote||{client_email:form.client_email,client_name:form.client_name}} user={user} />}
       {showQuotaConfirm&&<QuotaConfirmModal onClose={()=>setShowQuotaConfirm(false)} quota={quota} onConfirm={()=>{setShowQuotaConfirm(false);if(pendingAction==='download') doDownload();}} />}
     </div>
   );
