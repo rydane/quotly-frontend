@@ -1451,7 +1451,7 @@ function QuotaConfirmModal({onClose, onConfirm, quota}) {
 // ═══════════════════════════════════
 // QUOTE FORM
 // ═══════════════════════════════════
-function QuoteForm({user, onShowUpgrade, onShowAuth}) {
+function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
   const [template, setTemplate]=useState('classique');
   const [sigData, setSigData]=useState(null);
   const [saving, setSaving]=useState(false);
@@ -1464,6 +1464,29 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
   const [quota, setQuota]=useState(null);
   const [showQuotaConfirm, setShowQuotaConfirm]=useState(false);
   const [activeRelances, setActiveRelances]=useState([]);
+
+  async function loadActiveRelances(quoteId, qNum){
+    if(!quoteId||!user) return;
+    const plan=user?.plan;
+    if(plan!=='pro'&&plan!=='team') return;
+    try{
+      const d=await api(`/quotes/${quoteId}/relances`);
+      const active=(d.relances||[]).filter(r=>r.active&&r.next_send_at&&r.sent_count<r.max_count);
+      setActiveRelances(active);
+      if(onRelanceUpdate) onRelanceUpdate({relances:active, quoteNum: qNum||''});
+    }catch(_){ 
+      setActiveRelances([]); 
+      if(onRelanceUpdate) onRelanceUpdate({relances:[], quoteNum:''});
+    }
+  }
+
+  useEffect(()=>{
+    if(savedQuote?.id){
+      loadActiveRelances(savedQuote.id, savedQuote.number||quoteNum);
+      const iv=setInterval(()=>loadActiveRelances(savedQuote.id, savedQuote.number||quoteNum),30000);
+      return()=>clearInterval(iv);
+    }
+  },[savedQuote?.id]);
   const [pendingAction, setPendingAction]=useState(null);
 
   useEffect(()=>{
@@ -1490,22 +1513,6 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
     setTemplate(id);
     if(PRO_TPLS.includes(id)&&!isPro()) toast('Aperçu activé — Plan Pro requis pour télécharger','info');
   }
-
-  async function loadActiveRelances(quoteId){
-    if(!quoteId||!user||!isPro()) return;
-    try{
-      const d=await api(`/quotes/${quoteId}/relances`);
-      const active=(d.relances||[]).filter(r=>r.active&&r.next_send_at&&r.sent_count<r.max_count);
-      setActiveRelances(active);
-    }catch(_){ setActiveRelances([]); }
-  }
-
-  useEffect(()=>{
-    if(savedQuote?.id) loadActiveRelances(savedQuote.id);
-    // Refresh every 30s
-    const iv=setInterval(()=>{ if(savedQuote?.id) loadActiveRelances(savedQuote.id); },30000);
-    return()=>clearInterval(iv);
-  },[savedQuote?.id]);
 
   async function saveQuote(){
     if(!form.company||!form.client_name||items.every(i=>!i.description)){ toast('Remplissez entreprise, client et au moins une prestation','error'); return null; }
@@ -1736,23 +1743,6 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
                 <span style={{marginLeft:6,fontSize:11,color:'#64748b'}}> · Plan Équipe</span>
               )}
             </button>
-
-            {/* Bandeau timer relances actives */}
-            {activeRelances.length>0&&activeRelances.map(r=>(
-              <div key={r.id} style={{gridColumn:'1/-1',background:'linear-gradient(135deg,#f5f3ff,#eef2ff)',border:'1.5px solid #c7d2fe',borderRadius:12,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-                <div style={{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}}>
-                  <span style={{fontSize:18}}>⏱</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:11,fontWeight:600,color:'#6d28d9',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>Relance automatique active</div>
-                    <div style={{fontSize:12,color:'#64748b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>→ {r.client_email} · {r.sent_count}/{r.max_count} envoyées</div>
-                  </div>
-                </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:10,color:'#94a3b8',marginBottom:2}}>Prochain envoi dans</div>
-                  <RelanceCountdown nextSendAt={r.next_send_at} onExpire={()=>loadActiveRelances(savedQuote?.id)}/>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -1837,7 +1827,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth}) {
       {modal==='email'&&<EmailModal onClose={()=>setModal(null)} quote={savedQuote||{...form,items}} user={user} sigData={sigData} />}
       {modal==='stats'&&<StatsModal onClose={()=>setModal(null)} />}
       {modal==='gallery'&&<TemplateGallery onClose={()=>setModal(null)} onSelect={selectTemplate} current={template} isPro={isPro()} onShowUpgrade={onShowUpgrade} />}
-      {modal==='relance'&&<RelanceModal onClose={()=>{ setModal(null); if(savedQuote?.id) loadActiveRelances(savedQuote.id); }} quote={savedQuote||{client_email:form.client_email,client_name:form.client_name}} user={user} />}
+      {modal==='relance'&&<RelanceModal onClose={()=>{ setModal(null); if(savedQuote?.id) setTimeout(()=>loadActiveRelances(savedQuote.id, savedQuote.number||quoteNum), 500); }} quote={savedQuote||{id:null,client_email:form.client_email||'',client_name:form.client_name||''}} user={user} />}
       {showQuotaConfirm&&<QuotaConfirmModal onClose={()=>setShowQuotaConfirm(false)} quota={quota} onConfirm={()=>{setShowQuotaConfirm(false);if(pendingAction==='download') doDownload();}} />}
     </div>
   );
@@ -2092,7 +2082,26 @@ function Landing({onShowAuth, onGoApp, user}) {
 // ═══════════════════════════════════
 // NAV
 // ═══════════════════════════════════
-function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam}) {
+function NavTimer({nextSendAt}){
+  const [cd,setCd]=React.useState('');
+  React.useEffect(()=>{
+    if(!nextSendAt) return;
+    const tick=()=>{
+      const diff=new Date(nextSendAt)-new Date();
+      if(diff<=0){ setCd('Envoi...'); return; }
+      const h=Math.floor(diff/3600000);
+      const m=Math.floor((diff%3600000)/60000);
+      const s=Math.floor((diff%60000)/1000);
+      setCd(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    };
+    tick();
+    const id=setInterval(tick,1000);
+    return()=>clearInterval(id);
+  },[nextSendAt]);
+  return <span style={{fontFamily:'monospace',fontSize:13,fontWeight:700,color:'#4f46e5'}}>{cd||'...'}</span>;
+}
+
+function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance}) {
   const [menuOpen, setMenuOpen]=useState(false);
   const [scrolled, setScrolled]=useState(false);
   useEffect(()=>{ const fn=()=>setScrolled(window.scrollY>30); window.addEventListener('scroll',fn); return ()=>window.removeEventListener('scroll',fn); },[]);
@@ -2124,6 +2133,13 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam}) {
                 <span style={{fontWeight:700,color:'#4f46e5'}}>{user.name?.split(' ')[0]}</span>
                 <span className="badge status-accepted" style={{fontSize:10,padding:'1px 7px'}}>{PLANS[user.plan]||user.plan}</span>
               </div>
+              {navRelance?.relances?.length>0&&navRelance.relances[0]?.next_send_at&&(
+                <div className="hide-mobile" style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',background:'linear-gradient(135deg,#f5f3ff,#eef2ff)',border:'1.5px solid #c7d2fe',borderRadius:99,fontSize:11,cursor:'default'}}>
+                  <span>⏱</span>
+                  {navRelance.quoteNum&&<span style={{fontWeight:700,color:'#4f46e5',fontSize:11}}>{navRelance.quoteNum}</span>}
+                  <NavTimer nextSendAt={navRelance.relances[0].next_send_at}/>
+                </div>
+              )}
               {user.plan==='team'&&(
                 <button className="btn btn-outline" onClick={onShowTeam} style={{fontSize:12,padding:'6px 14px',borderColor:'rgba(79,70,229,.35)'}}>◆ Équipe</button>
               )}
@@ -2263,6 +2279,7 @@ function App() {
   const [upgradeReason, setUpgradeReason]=useState('');
   const [teamModal, setTeamModal]=useState(false);
   const [signToken, setSignToken]=useState(null);
+  const [navRelance, setNavRelance]=useState({relances:[],quoteNum:''});
 
   useEffect(()=>{
     // Détection URL /sign/:token
@@ -2284,7 +2301,7 @@ function App() {
       <Toasts />
       {signToken ? <SignPage token={signToken} /> : (
       <>
-      <Nav user={user} page={page} onPage={setPage} onShowAuth={showAuth} onLogout={handleLogout} onShowTeam={()=>setTeamModal(true)} />
+      <Nav user={user} page={page} onPage={setPage} onShowAuth={showAuth} onLogout={handleLogout} onShowTeam={()=>setTeamModal(true)} navRelance={navRelance} />
 
       <div style={{paddingTop:page==='landing'?0:64}}>
         {page==='landing'&&<Landing onShowAuth={showAuth} onGoApp={()=>{ if(!user){showAuth('register');}else{setPage('app');} }} user={user} />}
@@ -2305,7 +2322,7 @@ function App() {
                 )}
               </div>
             </div>
-            <QuoteForm user={user} onShowUpgrade={showUpgrade} onShowAuth={()=>showAuth('login')} />
+            <QuoteForm user={user} onShowUpgrade={showUpgrade} onShowAuth={()=>showAuth('login')} onRelanceUpdate={setNavRelance} />
           </div>
         )}
       </div>
