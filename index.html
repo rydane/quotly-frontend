@@ -1468,34 +1468,37 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
   const [template, setTemplate]=useState('classique');
   const [sigData, setSigData]=useState(null);
   const [saving, setSaving]=useState(false);
-  const [savedQuote, setSavedQuoteState]=useState(()=>{ try{ return JSON.parse(localStorage.getItem('qLastQuote')||'null'); }catch{ return null; } });
-  function setSavedQuote(q){ setSavedQuoteState(q); if(q){ localStorage.setItem('qLastQuote',JSON.stringify(q)); } else { localStorage.removeItem('qLastQuote'); } }
+  // Au mount, on lit UNIQUEMENT un devis explicitement ouvert depuis l'historique
+  // (clé éphémère 'qOpenQuote' posée par onOpenQuote). On ne lit JAMAIS qLastQuote :
+  // le formulaire repart vide à chaque rechargement de page.
+  const _opened=(()=>{ try{
+    const raw=localStorage.getItem('qOpenQuote');
+    if(!raw) return null;
+    localStorage.removeItem('qOpenQuote'); // consommé une seule fois
+    const q=JSON.parse(raw);
+    if(typeof q.items==='string'){ try{ q.items=JSON.parse(q.items); }catch(_){ q.items=[]; } }
+    return q;
+  }catch(_){ return null; } })();
+  const [savedQuote, setSavedQuoteState]=useState(_opened);
+  function setSavedQuote(q){ setSavedQuoteState(q); }
   const [modal, setModal]=useState(null);
-  const [quoteNum, setQuoteNum]=useState(()=>{ try{ const q=JSON.parse(localStorage.getItem('qLastQuote')||'null'); return q?.number||''; }catch{ return ''; } });
+  const [quoteNum, setQuoteNum]=useState(_opened?.number||'');
   const [items, setItems]=useState(()=>{
-    try{
-      const q=JSON.parse(localStorage.getItem('qLastQuote')||'null');
-      const its=q?.items;
-      const arr=typeof its==='string'?JSON.parse(its):its;
-      if(Array.isArray(arr)&&arr.length>0) return arr.map(it=>({description:it.description||'',qty:it.qty||1,unit_price:it.unit_price||0}));
-    }catch(_){}
+    const arr=_opened?.items;
+    if(Array.isArray(arr)&&arr.length>0) return arr.map(it=>({description:it.description||'',qty:it.qty||1,unit_price:it.unit_price||0}));
     return [{description:'',qty:1,unit_price:0}];
   });
-  const [form, setForm]=useState(()=>{
-    try{
-      const q=JSON.parse(localStorage.getItem('qLastQuote')||'null');
-      if(q) return {
-        company:q.company_name||'',
-        client_name:q.client_name||'',
-        client_address:q.client_address||'',
-        client_email:q.client_email||'',
-        tva_rate:q.tva_rate||20,
-        validity_days:q.validity_days||30,
-        conditions:q.conditions||''
-      };
-    }catch(_){}
-    return {company:'',client_name:'',client_address:'',client_email:'',tva_rate:20,validity_days:30,conditions:''};
-  });
+  const [form, setForm]=useState(_opened?{
+    company:_opened.company_name||'',
+    client_name:_opened.client_name||'',
+    client_address:_opened.client_address||'',
+    client_email:_opened.client_email||'',
+    tva_rate:_opened.tva_rate||20,
+    validity_days:_opened.validity_days||30,
+    conditions:_opened.conditions||''
+  }:{company:'',client_name:'',client_address:'',client_email:'',tva_rate:20,validity_days:30,conditions:''});
+  // Nettoyage d'anciens brouillons stockés par d'anciennes versions
+  useEffect(()=>{ try{ localStorage.removeItem('qLastQuote'); }catch(_){} },[]);
   const [preview, setPreview]=useState({ht:0,tva:0,ttc:0});
   const [quota, setQuota]=useState(null);
   const [showQuotaConfirm, setShowQuotaConfirm]=useState(false);
@@ -2418,7 +2421,7 @@ function SignPage({token}) {
   function clearSig(){ const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height); setHasSig(false); }
 
   async function submitSign(){
-    if(signing) return;
+    if(signing||refusing) return;
     if(!hasSig){ alert('Veuillez signer dans le cadre'); return; }
     const data=canvasRef.current.toDataURL('image/png');
     setSigData(data);
@@ -2428,7 +2431,12 @@ function SignPage({token}) {
       const d=await res.json().catch(()=>({}));
       const err=(d.error||'').toString();
       if(!res.ok||d.error){
-        if(res.status===409&&err.toLowerCase().includes('déjà signé')&&!alreadySigned){ setSigned(true); return; }
+        const lo=err.toLowerCase();
+        if(res.status===409){
+          // Le devis est déjà finalisé côté serveur : afficher le bon écran final
+          if(lo.includes('refus')){ setQuote(q=>q?{...q,status:'refused'}:q); setRefused(true); return; }
+          if(lo.includes('sign')){ setSigned(true); return; }
+        }
         alert(err||'Erreur serveur.'); setSigning(false); return;
       }
       setQuote(q=>q?{...q,status:'accepted',signed_at:d.signed_at||new Date().toISOString(),signer_name:signerName}:q);
@@ -2437,6 +2445,7 @@ function SignPage({token}) {
   }
 
   async function submitRefuse(){
+    if(refusing||signing) return;
     if(!confirm('Êtes-vous sûr de vouloir refuser ce devis ? Cette action est définitive.')) return;
     setRefusing(true);
     try{
@@ -2444,7 +2453,12 @@ function SignPage({token}) {
       const d=await res.json().catch(()=>({}));
       const err=(d.error||'').toString();
       if(!res.ok||d.error){
-        if(res.status===409&&err.toLowerCase().includes('déjà refusé')&&!alreadyRefused){ setRefused(true); return; }
+        const lo=err.toLowerCase();
+        if(res.status===409){
+          // Le devis est déjà finalisé côté serveur : afficher le bon écran final
+          if(lo.includes('sign')){ setQuote(q=>q?{...q,status:'accepted'}:q); setSigned(true); return; }
+          if(lo.includes('refus')){ setRefused(true); return; }
+        }
         alert(err||'Erreur serveur.'); setRefusing(false); return;
       }
       setQuote(q=>q?{...q,status:'refused',refused_at:d.refused_at||new Date().toISOString(),refused_reason:refuseReason}:q);
@@ -2589,8 +2603,8 @@ function App() {
           if(!found){ toast('Devis introuvable','error'); return; }
           // Normaliser items (peut être string JSON)
           if(typeof found.items==='string'){ try{ found.items=JSON.parse(found.items); }catch(_){ found.items=[]; } }
-          localStorage.setItem('qLastQuote',JSON.stringify(found));
-          setOpenedQuoteKey(k=>k+1); // force QuoteForm remount -> relit qLastQuote
+          localStorage.setItem('qOpenQuote',JSON.stringify(found));
+          setOpenedQuoteKey(k=>k+1); // force QuoteForm remount -> consomme qOpenQuote
           setPage('app');
           toast('Devis signé ouvert ✦','success');
         } catch(e){
