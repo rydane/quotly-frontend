@@ -141,6 +141,7 @@ tailwind.config = {
   @media(max-width:640px){
     .modal-box{padding:24px 18px;max-width:100%}
     @media(max-width:640px){.hide-mobile{display:none!important}}
+    @media(max-width:640px){.show-mobile-flex{display:flex!important}}
     .stack-mobile{grid-template-columns:1fr!important}
     .card{padding:16px}
   }
@@ -2522,6 +2523,43 @@ function NavTimer({nextSendAt}){
   return <span style={{fontFamily:'monospace',fontSize:13,fontWeight:700,color:'#16775a'}}>{cd||'...'}</span>;
 }
 
+function MobileNotifList({onOpenQuote}) {
+  const [notifs, setNotifs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(()=>{
+    api('/notifications').then(r=>{
+      setNotifs((r.notifications||[]).slice(0,5));
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  },[]);
+
+  const markRead = async(id)=>{
+    try{ await api(`/notifications/${id}/read`,'PUT'); setNotifs(n=>n.map(x=>x.id===id?{...x,read:true}:x)); }catch(_){}
+  };
+
+  const icon = (t) => t==='quote_signed'?'✍️':t==='quote_viewed'?'👁️':t==='quote_refused'?'❌':'🔔';
+
+  if(loading) return <div style={{padding:'10px 16px',color:'#7a7065',fontSize:13}}>Chargement…</div>;
+  if(!notifs.length) return <div style={{padding:'10px 16px',color:'#7a7065',fontSize:13}}>Aucune notification</div>;
+
+  return (
+    <div>
+      {notifs.map(n=>(
+        <div key={n.id} onClick={()=>{ markRead(n.id); if(n.quote_id) onOpenQuote(n.quote_id); }}
+          style={{display:'flex',alignItems:'flex-start',gap:10,padding:'10px 14px',borderRadius:10,background:n.read?'none':'#f0faf6',cursor:n.quote_id?'pointer':'default',marginBottom:2}}>
+          <span style={{fontSize:16,flexShrink:0}}>{icon(n.type)}</span>
+          <div>
+            <div style={{fontSize:13,color:'#1a1916',fontWeight:n.read?400:600,lineHeight:1.35}}>{n.message}</div>
+            <div style={{fontSize:11,color:'#a8a6a1',marginTop:2}}>{n.created_at?new Date(n.created_at).toLocaleDateString('fr-FR'):''}</div>
+          </div>
+          {!n.read&&<div style={{width:7,height:7,borderRadius:'50%',background:'#16775a',flexShrink:0,marginTop:4,marginLeft:'auto'}}/>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function InvoicesPage({user, onShowUpgrade, onGoQuotes}) {
   const [invoices, setInvoices] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -2676,27 +2714,118 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance, 
                 <span className="badge status-accepted" style={{fontSize:10,padding:'1px 7px'}}>{PLANS[user.plan]||user.plan}</span>
               </div>
               {navRelance?.relances?.length>0&&navRelance.relances[0]?.next_send_at&&(
-                <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',background:'linear-gradient(135deg,#f5f3ff,#f0faf6)',border:'1.5px solid #b8ddd1',borderRadius:99,fontSize:11,cursor:'default'}}>
+                <div className="hide-mobile" style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',background:'linear-gradient(135deg,#f5f3ff,#f0faf6)',border:'1.5px solid #b8ddd1',borderRadius:99,fontSize:11,cursor:'default'}}>
                   <span>⏱</span>
                   {navRelance.quoteNum&&<span style={{fontWeight:700,color:'#16775a',fontSize:11}}>{navRelance.quoteNum}</span>}
                   <NavTimer nextSendAt={navRelance.relances[0].next_send_at}/>
                 </div>
               )}
               {user.plan==='team'&&(
-                <button className="btn btn-outline" onClick={onShowTeam} style={{fontSize:12,padding:'6px 14px',borderColor:'rgba(22,119,90,.35)'}}>◆ Équipe</button>
+                <button className="btn btn-outline hide-mobile" onClick={onShowTeam} style={{fontSize:12,padding:'6px 14px',borderColor:'rgba(22,119,90,.35)'}}>◆ Équipe</button>
               )}
-              <NotificationBell onOpenQuote={onOpenQuote} />
-              <button className="btn btn-ghost" onClick={onLogout} style={{fontSize:13,color:'#7a7065'}}>Déconnexion</button>
+              <span className="hide-mobile"><NotificationBell onOpenQuote={onOpenQuote} /></span>
+              <button className="btn btn-ghost hide-mobile" onClick={onLogout} style={{fontSize:13,color:'#7a7065'}}>Déconnexion</button>
             </div>
           ):(
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              <button className="nav-link" onClick={()=>onShowAuth('login')} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,color:'#5a524a',padding:'6px 10px'}}>Connexion</button>
-              <button className="btn btn-gold" onClick={()=>onShowAuth('register')} style={{fontSize:13,padding:'8px 18px'}}>S'inscrire →</button>
+              <button className="nav-link hide-mobile" onClick={()=>onShowAuth('login')} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,color:'#5a524a',padding:'6px 10px'}}>Connexion</button>
+              <button className="btn btn-gold hide-mobile" onClick={()=>onShowAuth('register')} style={{fontSize:13,padding:'8px 18px'}}>S'inscrire →</button>
             </div>
           )}
-          <button className="hide-mobile" style={{display:'none'}} />
+
+          {/* Bouton hamburger mobile */}
+          <button
+            onClick={()=>setMenuOpen(o=>!o)}
+            style={{display:'none',background:'none',border:'none',cursor:'pointer',padding:'6px',borderRadius:8,fontSize:22,color:'#1a1916',lineHeight:1}}
+            className="show-mobile-flex"
+            aria-label="Menu"
+          >
+            {menuOpen ? '✕' : '☰'}
+          </button>
         </div>
       </div>
+
+      {/* Panneau mobile coulissant */}
+      {menuOpen&&(
+        <div style={{position:'fixed',top:64,left:0,right:0,bottom:0,zIndex:899,background:'rgba(0,0,0,.4)'}} onClick={()=>setMenuOpen(false)}>
+          <div style={{position:'absolute',top:0,right:0,width:'80%',maxWidth:320,height:'100%',background:'#fff',boxShadow:'-4px 0 24px rgba(0,0,0,.12)',overflowY:'auto',fontFamily:'DM Sans,sans-serif'}}
+            onClick={e=>e.stopPropagation()}>
+
+            {/* En-tête compte */}
+            {user&&(
+              <div style={{padding:'20px 20px 16px',borderBottom:'1px solid #f0ede8',background:'linear-gradient(135deg,#f8f7f4,#f0faf6)'}}>
+                <div style={{fontWeight:700,fontSize:15,color:'#1a1916'}}>{user.name}</div>
+                <div style={{fontSize:12,color:'#7a7065',marginTop:2}}>{user.email}</div>
+                <span className="badge status-accepted" style={{fontSize:10,padding:'2px 8px',marginTop:6,display:'inline-block'}}>{PLANS[user.plan]||user.plan}</span>
+              </div>
+            )}
+
+            {/* Navigation principale */}
+            <div style={{padding:'12px 8px'}}>
+              <div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Navigation</div>
+
+              <button onClick={()=>{onPage('app');setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:page==='app'?'#f0faf6':'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:page==='app'?'#16775a':'#1a1916',fontWeight:page==='app'?700:500,fontSize:15,fontFamily:'DM Sans,sans-serif'}}>
+                <span style={{fontSize:18}}>📄</span> Créer un devis
+              </button>
+
+              {user&&(
+                <button onClick={()=>{onPage('invoices');setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:page==='invoices'?'#f0faf6':'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:page==='invoices'?'#16775a':'#1a1916',fontWeight:page==='invoices'?700:500,fontSize:15,fontFamily:'DM Sans,sans-serif'}}>
+                  <span style={{fontSize:18}}>🧾</span> Mes factures
+                </button>
+              )}
+
+              {!user&&(
+                <>
+                  <button onClick={()=>{onShowAuth('login');setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#1a1916',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}>
+                    <span style={{fontSize:18}}>🔑</span> Connexion
+                  </button>
+                  <button onClick={()=>{onShowAuth('register');setMenuOpen(false);}} style={{width:'calc(100% - 24px)',margin:'4px 12px',padding:'12px 16px',background:'linear-gradient(135deg,#f5da8a,#c9851a)',border:'none',borderRadius:10,cursor:'pointer',color:'#fff',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:700}}>
+                    S'inscrire →
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Notifications */}
+            {user&&(
+              <div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>
+                <div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Notifications</div>
+                <MobileNotifList onOpenQuote={(id)=>{onOpenQuote(id);setMenuOpen(false);}} />
+              </div>
+            )}
+
+            {/* Relances actives */}
+            {user&&navRelance?.relances?.length>0&&(
+              <div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>
+                <div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Relances actives</div>
+                {navRelance.relances.map((r,i)=>(
+                  <div key={i} style={{margin:'4px 0',padding:'10px 14px',background:'linear-gradient(135deg,#f5f3ff,#f0faf6)',border:'1.5px solid #b8ddd1',borderRadius:10}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                      <span style={{fontWeight:700,color:'#16775a',fontSize:13}}>{navRelance.quoteNum}</span>
+                      <span style={{fontSize:11,color:'#7a7065'}}>⏱ Prochaine :</span>
+                    </div>
+                    {r.next_send_at&&<div style={{marginTop:4,fontSize:13,fontWeight:600,color:'#1a1916'}}><NavTimer nextSendAt={r.next_send_at}/></div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Équipe + Déconnexion */}
+            {user&&(
+              <div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>
+                {user.plan==='team'&&(
+                  <button onClick={()=>{onShowTeam();setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#1a1916',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}>
+                    <span style={{fontSize:18}}>◆</span> Mon équipe
+                  </button>
+                )}
+                <button onClick={()=>{onLogout();setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#e05c5c',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}>
+                  <span style={{fontSize:18}}>↩</span> Déconnexion
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
