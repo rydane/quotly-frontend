@@ -2011,7 +2011,26 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
                 <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={()=>{ if(!user){onShowAuth();return;} setModal('email'); }}>
                   ✉ Envoyer par email
                 </button>
-                <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={()=>{ if(!isPro()){onShowUpgrade();return;} if(!savedQuote){toast("Téléchargez d'abord le devis",'info');return;} api(`/invoices/from-quote/${savedQuote.id}`,'POST').then(d=>toast(`Facture ${d.invoice.number} créée ✦`)).catch(e=>toast(e.message,'error')); }}>
+                <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={async ()=>{ 
+                  if(!user){onShowAuth();return;}
+                  if(!isPro()){onShowUpgrade('La conversion en facture est réservée aux plans Pro et Équipe.');return;}
+                  // Auto-save if not already saved
+                  let quote=savedQuote;
+                  if(!quote){
+                    toast('Sauvegarde du devis en cours…','info');
+                    quote=await saveQuote();
+                    if(!quote){return;}
+                    setSavedQuote(quote);
+                    setQuoteNum(quote.number);
+                  }
+                  try{
+                    toast('Création de la facture…','info');
+                    const d=await api(`/invoices/from-quote/${quote.id}`,'POST');
+                    toast(`✦ Facture ${d.invoice.number} créée avec succès !`,'success');
+                  }catch(e){
+                    toast(e.message||'Erreur lors de la création de la facture','error');
+                  }
+                }}>
                   ⟳ Convertir en facture
                 </button>
                 <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade();return;} setModal('stats'); }}>
