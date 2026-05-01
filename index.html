@@ -26,8 +26,8 @@ tailwind.config = {
 </script>
 <style>
   *,*::before,*::after{box-sizing:border-box}
-  html{scroll-behavior:smooth;overflow-x:hidden}
-  body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f4f1;color:#1a1916;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  html{scroll-behavior:smooth;}
+  body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f4f1;color:#1a1916;-webkit-font-smoothing:antialiased;overflow-x:auto;max-width:100vw}
   @media(max-width:768px){.preview-col{display:none!important}}
   @media(max-width:768px){.actions-col{width:100%!important}}
 
@@ -2684,7 +2684,6 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance, 
   const [menuOpen, setMenuOpen]=useState(false);
   const [scrolled, setScrolled]=useState(false);
   useEffect(()=>{ const fn=()=>setScrolled(window.scrollY>30); window.addEventListener('scroll',fn); return ()=>window.removeEventListener('scroll',fn); },[]);
-  // Close menu on escape key
   useEffect(()=>{ if(!menuOpen) return; const fn=(e)=>{ if(e.key==='Escape') setMenuOpen(false); }; window.addEventListener('keydown',fn); return ()=>window.removeEventListener('keydown',fn); },[menuOpen]);
   // menu fermé directement dans chaque bouton
 
@@ -2826,6 +2825,7 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance, 
           </button>
         </div>
       </div>
+
 
     </nav>
     {menuPanel}
