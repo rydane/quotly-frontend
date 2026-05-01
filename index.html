@@ -26,10 +26,16 @@ tailwind.config = {
 </script>
 <style>
   *,*::before,*::after{box-sizing:border-box}
-  html{scroll-behavior:smooth;overflow-x:auto}
-  body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f4f1;color:#1a1916;-webkit-font-smoothing:antialiased;overflow-x:auto}
+  html{scroll-behavior:smooth;overflow-x:hidden}
+  body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f4f1;color:#1a1916;-webkit-font-smoothing:antialiased;overflow-x:hidden;width:100%;position:relative}
   @media(max-width:768px){.preview-col{display:none!important}}
   @media(max-width:768px){.actions-col{width:100%!important}}
+  @media(max-width:768px){
+    html,body{overflow-x:hidden!important;width:100%!important}
+    .app-header-inner{padding-left:16px!important;padding-right:16px!important}
+    .col-2{grid-template-columns:1fr!important}
+    .hide-mobile{display:none!important}
+  }
 
   ::-webkit-scrollbar{width:5px}
   ::-webkit-scrollbar-track{background:#f0ede8}
@@ -1775,7 +1781,7 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate, onGoInvoic
   }
 
   return (
-    <div style={{maxWidth:1200,margin:'0 auto',padding:'24px 12px',boxSizing:'border-box',width:'100%'}}>
+    <div style={{maxWidth:1200,margin:'0 auto',padding:'20px 16px',boxSizing:'border-box',width:'100%'}}>
 
       {/* Quota banner */}
       {user&&quota&&quota.plan==='starter'&&(
@@ -3044,8 +3050,8 @@ function App() {
         {page==='invoices'&&<InvoicesPage user={user} onShowUpgrade={showUpgrade} onGoQuotes={()=>setPage('app')} />}
         {page==='app'&&(
           <div>
-            <div style={{background:'#fff',borderBottom:'1px solid #e8e3dc',padding:'20px 24px'}}>
-              <div style={{maxWidth:1120,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+            <div style={{background:'#fff',borderBottom:'1px solid #e8e3dc',padding:'16px'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12,width:'100%',boxSizing:'border-box'}}>
                 <div>
                   <h1 style={{margin:0,fontSize:22,fontWeight:700,fontFamily:'DM Sans,sans-serif',color:'#1a1916',letterSpacing:'.02em'}}>
                     Nouveau devis
