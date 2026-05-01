@@ -26,8 +26,8 @@ tailwind.config = {
 </script>
 <style>
   *,*::before,*::after{box-sizing:border-box}
-  html{scroll-behavior:smooth;}
-  body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f4f1;color:#1a1916;-webkit-font-smoothing:antialiased;overflow-x:auto;max-width:100vw}
+  html{scroll-behavior:smooth;overflow-x:auto}
+  body{margin:0;font-family:'DM Sans',sans-serif;background:#f5f4f1;color:#1a1916;-webkit-font-smoothing:antialiased;overflow-x:auto}
   @media(max-width:768px){.preview-col{display:none!important}}
   @media(max-width:768px){.actions-col{width:100%!important}}
 
@@ -2691,77 +2691,18 @@ function Nav({user, page, onPage, onShowAuth, onLogout, onShowTeam, navRelance, 
   const navBg=scrolled||!onLanding?'rgba(255,255,255,.98)':'transparent';
 
   const menuPanel = menuOpen ? ReactDOM.createPortal(
-    <div
-      onClick={()=>setMenuOpen(false)}
-      style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:99999,background:'rgba(0,0,0,.5)'}}>
-      <div
-        style={{position:'absolute',top:0,right:0,width:'85%',maxWidth:340,height:'100%',background:'#fff',boxShadow:'-4px 0 32px rgba(0,0,0,.2)',overflowY:'auto',fontFamily:'DM Sans,sans-serif'}}
-        onClick={e=>e.stopPropagation()}>
-
-        {user&&(
-          <div style={{padding:'20px 20px 16px',borderBottom:'1px solid #f0ede8',background:'linear-gradient(135deg,#f8f7f4,#f0faf6)'}}>
-            <div style={{fontWeight:700,fontSize:15,color:'#1a1916'}}>{user.name}</div>
-            <div style={{fontSize:12,color:'#7a7065',marginTop:2}}>{user.email}</div>
-            <span className="badge status-accepted" style={{fontSize:10,padding:'2px 8px',marginTop:6,display:'inline-block'}}>{PLANS[user.plan]||user.plan}</span>
-          </div>
-        )}
-
+    <div onClick={()=>setMenuOpen(false)} style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:99999,background:'rgba(0,0,0,.5)'}}>
+      <div style={{position:'absolute',top:0,right:0,width:'85%',maxWidth:340,height:'100%',background:'#fff',boxShadow:'-4px 0 32px rgba(0,0,0,.2)',overflowY:'auto',fontFamily:'DM Sans,sans-serif'}} onClick={e=>e.stopPropagation()}>
+        {user&&(<div style={{padding:'20px 20px 16px',borderBottom:'1px solid #f0ede8',background:'linear-gradient(135deg,#f8f7f4,#f0faf6)'}}><div style={{fontWeight:700,fontSize:15,color:'#1a1916'}}>{user.name}</div><div style={{fontSize:12,color:'#7a7065',marginTop:2}}>{user.email}</div><span className="badge status-accepted" style={{fontSize:10,padding:'2px 8px',marginTop:6,display:'inline-block'}}>{PLANS[user.plan]||user.plan}</span></div>)}
         <div style={{padding:'12px 8px'}}>
           <div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Navigation</div>
-          <button onClick={()=>{setMenuOpen(false);onPage('app');}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:page==='app'?'#f0faf6':'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:page==='app'?'#16775a':'#1a1916',fontWeight:page==='app'?700:500,fontSize:15,fontFamily:'DM Sans,sans-serif'}}>
-            <span style={{fontSize:18}}>📄</span> Créer un devis
-          </button>
-          {user&&(
-            <button onClick={()=>{setMenuOpen(false);onPage('invoices');}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:page==='invoices'?'#f0faf6':'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:page==='invoices'?'#16775a':'#1a1916',fontWeight:page==='invoices'?700:500,fontSize:15,fontFamily:'DM Sans,sans-serif'}}>
-              <span style={{fontSize:18}}>🧾</span> Mes factures
-            </button>
-          )}
-          {!user&&(
-            <>
-              <button onClick={()=>{onShowAuth('login');setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#1a1916',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}>
-                <span style={{fontSize:18}}>🔑</span> Connexion
-              </button>
-              <button onClick={()=>{onShowAuth('register');setMenuOpen(false);}} style={{width:'calc(100% - 24px)',margin:'4px 12px',padding:'12px 16px',background:'linear-gradient(135deg,#16775a,#0f5c45)',border:'none',borderRadius:10,cursor:'pointer',color:'#fff',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:700}}>
-                S'inscrire →
-              </button>
-            </>
-          )}
+          <button onClick={()=>{setMenuOpen(false);onPage('app');}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:page==='app'?'#f0faf6':'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:page==='app'?'#16775a':'#1a1916',fontWeight:page==='app'?700:500,fontSize:15,fontFamily:'DM Sans,sans-serif'}}><span style={{fontSize:18}}>📄</span> Créer un devis</button>
+          {user&&<button onClick={()=>{setMenuOpen(false);onPage('invoices');}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:page==='invoices'?'#f0faf6':'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:page==='invoices'?'#16775a':'#1a1916',fontWeight:page==='invoices'?700:500,fontSize:15,fontFamily:'DM Sans,sans-serif'}}><span style={{fontSize:18}}>🧾</span> Mes factures</button>}
+          {!user&&<><button onClick={()=>{onShowAuth('login');setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#1a1916',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}><span style={{fontSize:18}}>🔑</span> Connexion</button><button onClick={()=>{onShowAuth('register');setMenuOpen(false);}} style={{width:'calc(100% - 24px)',margin:'4px 12px',padding:'12px 16px',background:'linear-gradient(135deg,#16775a,#0f5c45)',border:'none',borderRadius:10,cursor:'pointer',color:'#fff',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:700}}>S'inscrire →</button></>}
         </div>
-
-        {user&&(
-          <div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>
-            <div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Notifications</div>
-            <MobileNotifList onOpenQuote={(id)=>{onOpenQuote(id);setMenuOpen(false);}} />
-          </div>
-        )}
-
-        {user&&navRelance?.relances?.length>0&&(
-          <div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>
-            <div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Relances actives</div>
-            {navRelance.relances.map((r,i)=>(
-              <div key={i} style={{margin:'4px 0',padding:'10px 14px',background:'linear-gradient(135deg,#f5f3ff,#f0faf6)',border:'1.5px solid #b8ddd1',borderRadius:10}}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <span style={{fontWeight:700,color:'#16775a',fontSize:13}}>{navRelance.quoteNum}</span>
-                  <span style={{fontSize:11,color:'#7a7065'}}>⏱ Prochaine :</span>
-                </div>
-                {r.next_send_at&&<div style={{marginTop:4,fontSize:13,fontWeight:600,color:'#1a1916'}}><NavTimer nextSendAt={r.next_send_at}/></div>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {user&&(
-          <div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>
-            {user.plan==='team'&&(
-              <button onClick={()=>{onShowTeam();setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#1a1916',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}>
-                <span style={{fontSize:18}}>◆</span> Mon équipe
-              </button>
-            )}
-            <button onClick={()=>{onLogout();setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#e05c5c',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}>
-              <span style={{fontSize:18}}>↩</span> Déconnexion
-            </button>
-          </div>
-        )}
+        {user&&<div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}><div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Notifications</div><MobileNotifList onOpenQuote={(id)=>{onOpenQuote(id);setMenuOpen(false);}} /></div>}
+        {user&&navRelance?.relances?.length>0&&<div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}><div style={{fontSize:10,fontWeight:700,color:'#a8a6a1',textTransform:'uppercase',letterSpacing:'.08em',padding:'4px 12px 8px'}}>Relances actives</div>{navRelance.relances.map((r,i)=><div key={i} style={{margin:'4px 0',padding:'10px 14px',background:'linear-gradient(135deg,#f5f3ff,#f0faf6)',border:'1.5px solid #b8ddd1',borderRadius:10}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}><span style={{fontWeight:700,color:'#16775a',fontSize:13}}>{navRelance.quoteNum}</span><span style={{fontSize:11,color:'#7a7065'}}>⏱ Prochaine :</span></div>{r.next_send_at&&<div style={{marginTop:4,fontSize:13,fontWeight:600,color:'#1a1916'}}><NavTimer nextSendAt={r.next_send_at}/></div>}</div>)}</div>}
+        {user&&<div style={{borderTop:'1px solid #f0ede8',padding:'12px 8px'}}>{user.plan==='team'&&<button onClick={()=>{onShowTeam();setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#1a1916',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}><span style={{fontSize:18}}>◆</span> Mon équipe</button>}<button onClick={()=>{onLogout();setMenuOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'none',border:'none',borderRadius:10,cursor:'pointer',textAlign:'left',color:'#e05c5c',fontSize:15,fontFamily:'DM Sans,sans-serif',fontWeight:500}}><span style={{fontSize:18}}>↩</span> Déconnexion</button></div>}
       </div>
     </div>,
     document.body
