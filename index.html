@@ -205,33 +205,39 @@ function fmtMoneyPDF(n) {
 }
 function fmtDate(d) { return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}); }
 
-// ── All 22 templates definition
-// Template preview colors (must match PDF generatePDF colors exactly)
-// PDF colors array [R,G,B] → hex: classique=[14,13,11]→#0e0d0b, etc.
-const TPL_COLORS = {
-  classique:{bg:'#0e0d0b',text:'#ffffff',accent:'#c9a84c'},
-  minimal:{bg:'#222222',text:'#ffffff',accent:'#c9a84c'},
-  bold:{bg:'#111111',text:'#ffffff',accent:'#c9a84c'},
-  blue_corp:{bg:'#1a3d6b',text:'#ffffff',accent:'#c9a84c'},
-  artisan:{bg:'#7c4b2a',text:'#ffffff',accent:'#c9a84c'},
-  tech:{bg:'#0f0f1a',text:'#ffffff',accent:'#c9a84c'},
-  nature:{bg:'#3a5c3a',text:'#ffffff',accent:'#c9a84c'},
-  luxe:{bg:'#1a1a1a',text:'#ffffff',accent:'#c9a84c'},
-  sante:{bg:'#1565a0',text:'#ffffff',accent:'#c9a84c'},
-  immobilier:{bg:'#2c3e50',text:'#ffffff',accent:'#c9a84c'},
-  event:{bg:'#8b1a6b',text:'#ffffff',accent:'#c9a84c'},
-  restaurant:{bg:'#8b2e0c',text:'#ffffff',accent:'#c9a84c'},
-  auto:{bg:'#2c2c2c',text:'#ffffff',accent:'#c9a84c'},
-  beaute:{bg:'#f7c5d5',text:'#3c1a28',accent:'#c9a84c'},
-  juridique:{bg:'#5c0a14',text:'#ffffff',accent:'#c9a84c'},
-  archi:{bg:'#e8e4de',text:'#2c2c2c',accent:'#c9a84c'},
-  photo:{bg:'#1a1a1a',text:'#ffffff',accent:'#c9a84c'},
-  transport:{bg:'#003380',text:'#ffffff',accent:'#c9a84c'},
-  formation:{bg:'#1976d2',text:'#ffffff',accent:'#c9a84c'},
-  nettoyage:{bg:'#0097a7',text:'#ffffff',accent:'#c9a84c'},
-  it:{bg:'#0d1117',text:'#ffffff',accent:'#c9a84c'},
-  mode:{bg:'#d4bfa0',text:'#3c2415',accent:'#c9a84c'},
+// ── Template configuration — single source of truth for BOTH preview and PDF
+// headerRgb: [R,G,B] for the colored header band
+// accentRgb: [R,G,B] for accent elements (lines, dots, totals bar)
+// headerText: '#fff' or dark color for text on the header band
+// accent: hex for preview CSS
+// header: hex for preview CSS
+const TPL_CONFIG = {
+  classique:   {header:'#1a1a1a', accent:'#c9a84c', headerText:'#fff', headerRgb:[26,26,26],   accentRgb:[201,168,76]},
+  moderne:     {header:'#4f46e5', accent:'#818cf8', headerText:'#fff', headerRgb:[79,70,229],   accentRgb:[129,140,248]},
+  artisan:     {header:'#7c4b2a', accent:'#e8a87c', headerText:'#fff', headerRgb:[124,75,42],   accentRgb:[232,168,124]},
+  minimal:     {header:'#f5f5f5', accent:'#111111', headerText:'#111', headerRgb:[245,245,245], accentRgb:[17,17,17]},
+  bold:        {header:'#111111', accent:'#ff4444', headerText:'#fff', headerRgb:[17,17,17],    accentRgb:[255,68,68]},
+  blue_corp:   {header:'#1a3d6b', accent:'#4d9de0', headerText:'#fff', headerRgb:[26,61,107],  accentRgb:[77,157,224]},
+  tech:        {header:'#0f0f1a', accent:'#6366f1', headerText:'#fff', headerRgb:[15,15,26],    accentRgb:[99,102,241]},
+  nature:      {header:'#3a5c3a', accent:'#a3d977', headerText:'#fff', headerRgb:[58,92,58],    accentRgb:[163,217,119]},
+  luxe:        {header:'#1a1a1a', accent:'#c9a84c', headerText:'#fff', headerRgb:[26,26,26],   accentRgb:[201,168,76]},
+  sante:       {header:'#1565a0', accent:'#4fc3f7', headerText:'#fff', headerRgb:[21,101,160],  accentRgb:[79,195,247]},
+  immobilier:  {header:'#2c3e50', accent:'#e67e22', headerText:'#fff', headerRgb:[44,62,80],    accentRgb:[230,126,34]},
+  event:       {header:'#8b1a6b', accent:'#f06292', headerText:'#fff', headerRgb:[139,26,107],  accentRgb:[240,98,146]},
+  restaurant:  {header:'#8b2e0c', accent:'#ffa07a', headerText:'#fff', headerRgb:[139,46,12],   accentRgb:[255,160,122]},
+  auto:        {header:'#1c1c1c', accent:'#e53935', headerText:'#fff', headerRgb:[28,28,28],    accentRgb:[229,57,53]},
+  beaute:      {header:'#f7c5d5', accent:'#c2185b', headerText:'#3c1a28', headerRgb:[247,197,213], accentRgb:[194,24,91]},
+  juridique:   {header:'#5c0a14', accent:'#c9a84c', headerText:'#fff', headerRgb:[92,10,20],    accentRgb:[201,168,76]},
+  archi:       {header:'#e8e4de', accent:'#333333', headerText:'#222', headerRgb:[232,228,222], accentRgb:[51,51,51]},
+  photo:       {header:'#1a1a1a', accent:'#ffffff', headerText:'#fff', headerRgb:[26,26,26],    accentRgb:[255,255,255]},
+  transport:   {header:'#003380', accent:'#ffd600', headerText:'#fff', headerRgb:[0,51,128],    accentRgb:[255,214,0]},
+  formation:   {header:'#1976d2', accent:'#ffb300', headerText:'#fff', headerRgb:[25,118,210],  accentRgb:[255,179,0]},
+  nettoyage:   {header:'#0097a7', accent:'#80deea', headerText:'#fff', headerRgb:[0,151,167],   accentRgb:[128,222,234]},
+  it:          {header:'#0d1117', accent:'#58a6ff', headerText:'#fff', headerRgb:[13,17,23],    accentRgb:[88,166,255]},
+  mode:        {header:'#d4bfa0', accent:'#3c2415', headerText:'#3c2415', headerRgb:[212,191,160], accentRgb:[60,36,21]},
 };
+// backward compat alias
+const TPL_COLORS = Object.fromEntries(Object.entries(TPL_CONFIG).map(([k,v])=>[k,{bg:v.header,text:v.headerText,accent:v.accent}]));
 
 const ALL_TEMPLATES = [
   {id:'classique',label:'Classique',icon:'📋',sector:'Universel',pro:false},
@@ -258,14 +264,16 @@ const ALL_TEMPLATES = [
   {id:'it',label:'IT Services',icon:'⚙',sector:'Informatique',pro:true},
 ];
 
-// ── PDF generation — Modern editorial style (Notion / Linear inspired)
+// ── PDF generation — template-colored header band matching the live preview
 function generatePDF(quote, user, sigDataUrl=null) {
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({unit:'mm',format:'a4'});
-  const W=210, H=297, M=20;
-  let y=M;
+  const W=210, H=297, M=18;
+  let y=0;
 
-  const tpl = (quote.template_id||'classique').toLowerCase();
+  const tplId = (quote.template_id||'classique').toLowerCase();
+  const cfg = TPL_CONFIG[tplId]||TPL_CONFIG.classique;
+
   let items=[];
   try {
     const raw = quote.items;
@@ -278,48 +286,42 @@ function generatePDF(quote, user, sigDataUrl=null) {
     unit_price: Number(it.unit_price ?? it.price ?? it.unitPrice ?? 0)||0,
   }));
 
-  // Per-template accent color (subtle, used as thin line + small dot only)
-  const accents = {
-    classique:[20,20,22], moderne:[88,80,236], artisan:[178,98,42], minimal:[34,34,34],
-    bold:[17,17,17], blue_corp:[26,86,160], tech:[99,102,241], nature:[58,140,90],
-    luxe:[166,124,46], sante:[14,165,160], immobilier:[51,71,99], event:[185,55,140],
-    restaurant:[200,80,40], auto:[60,60,64], beaute:[224,108,160], juridique:[150,30,52],
-    archi:[110,110,108], photo:[28,28,30], transport:[20,90,200], formation:[37,118,210],
-    nettoyage:[0,170,180], it:[60,80,140], mode:[180,140,90], default:[20,20,22]
-  };
-  const acc = accents[tpl]||accents.default;
+  const HDR  = cfg.headerRgb;      // header band fill
+  const ACC  = cfg.accentRgb;      // accent (lines, TTC bar, etc.)
+  const INK  = [17,17,19];
+  const SUB  = [100,100,108];
+  const MUT  = [150,150,158];
+  const HAIR = [225,225,230];
+  const SOFT = [248,248,250];
 
-  // Palette neutre éditoriale
-  const INK   = [17,17,19];     // texte principal
-  const SUB   = [110,110,118];  // texte secondaire
-  const MUTED = [156,156,163];  // libellés
-  const HAIR  = [232,232,236];  // hairlines
-  const SOFT  = [248,248,250];  // bg ultra-clair pour totaux
+  // Helper: is the header dark? For text color on band
+  const hdrDark = (HDR[0]*0.299+HDR[1]*0.587+HDR[2]*0.114) < 128;
+  const HDR_TXT = hdrDark ? [255,255,255] : [30,30,30];
 
-  // ── HEADER (épuré, pas de bandeau plein)
-  // Pastille accent + nom de l'entreprise
-  doc.setFillColor(...acc);
-  doc.circle(M+1.6, y+1.3, 1.6, 'F');
+  // ── HEADER BAND (colored, like the preview)
+  const BAND_H = 28;
+  doc.setFillColor(...HDR);
+  doc.rect(0, 0, W, BAND_H, 'F');
 
-  doc.setTextColor(...INK);
+  // Company name (left)
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.setTextColor(...HDR_TXT);
+  doc.text(quote.company_name||user?.name||'Votre entreprise', M, 12);
+
+  // "DEVIS" label + number (right)
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.setTextColor(...HDR_TXT);
+  doc.text('DEVIS', W-M, 10, {align:'right'});
   doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text(quote.company_name||user?.name||'Votre entreprise', M+6, y+2.4);
+  doc.text(quote.number||'DEV-001', W-M, 17, {align:'right'});
 
-  // Bloc identifiant à droite — DEVIS · numéro
-  doc.setFont('helvetica','normal'); doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  doc.text('DEVIS', W-M, y+0.5, {align:'right'});
-  doc.setTextColor(...INK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text(quote.number||'DEV-001', W-M, y+5.5, {align:'right'});
+  // Accent line under band
+  doc.setFillColor(...ACC);
+  doc.rect(0, BAND_H, W, 1.2, 'F');
 
-  y+=14;
+  y = BAND_H + 1.2 + 10;
 
-  // Hairline fine
-  doc.setDrawColor(...HAIR); doc.setLineWidth(0.2);
-  doc.line(M, y, W-M, y);
-  y+=12;
-
-  // ── META (4 colonnes : Émis le / Échéance / Client / Référence)
+  // ── META (4 colonnes)
   const colW=(W-2*M)/4;
   const meta=[
     ['ÉMIS LE', new Date(quote.created_at||Date.now()).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})],
@@ -328,118 +330,115 @@ function generatePDF(quote, user, sigDataUrl=null) {
     ['RÉFÉRENCE', quote.number||'—'],
   ];
   meta.forEach((m,i)=>{
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...MUT);
     doc.text(m[0], M+colW*i, y);
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.2); doc.setTextColor(...INK);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...INK);
     doc.text(String(m[1]), M+colW*i, y+5);
   });
   y+=14;
 
-  // ── DE / POUR (deux colonnes simples, sans bordures)
-  const halfW=(W-2*M-10)/2;
-  doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
+  // ── DE / POUR
+  const halfW=(W-2*M-12)/2;
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...MUT);
   doc.text('DE', M, y);
-  doc.text('POUR', M+halfW+10, y);
+  doc.text('POUR', M+halfW+12, y);
   y+=5;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...INK);
   doc.text(quote.company_name||user?.name||'—', M, y);
-  doc.text(quote.client_name||'—', M+halfW+10, y);
+  doc.text(quote.client_name||'—', M+halfW+12, y);
   y+=5;
 
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...SUB);
   let leftY=y, rightY=y;
   if(user?.email){ doc.text(user.email, M, leftY); leftY+=4.2; }
-  if(quote.company_address){ const lines=doc.splitTextToSize(quote.company_address,halfW); doc.text(lines,M,leftY); leftY+=lines.length*4.2; }
-  if(quote.client_address){ const lines=doc.splitTextToSize(quote.client_address,halfW); doc.text(lines,M+halfW+10,rightY); rightY+=lines.length*4.2; }
-  if(quote.client_email){ doc.text(quote.client_email,M+halfW+10,rightY); rightY+=4.2; }
+  if(quote.company_address){ const ln=doc.splitTextToSize(quote.company_address,halfW); doc.text(ln,M,leftY); leftY+=ln.length*4.2; }
+  if(quote.client_address){ const ln=doc.splitTextToSize(quote.client_address,halfW); doc.text(ln,M+halfW+12,rightY); rightY+=ln.length*4.2; }
+  if(quote.client_email){ doc.text(quote.client_email,M+halfW+12,rightY); rightY+=4.2; }
 
   y=Math.max(leftY,rightY)+10;
 
-  // ── TABLE — pas de fond coloré, juste des hairlines
-  // En-tête de tableau
-  doc.setDrawColor(...HAIR); doc.setLineWidth(0.2);
-  doc.line(M, y, W-M, y);
-  const tcolW=[W-2*M-78, 16, 28, 32];
+  // ── TABLE HEADER
+  doc.setFillColor(...HDR);
+  doc.rect(M, y, W-2*M, 8, 'F');
+  const tcolW=[W-2*M-76, 16, 28, 30];
   const tcolX=[M, M+tcolW[0], M+tcolW[0]+tcolW[1], M+tcolW[0]+tcolW[1]+tcolW[2]];
-  doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
-  doc.text('DESCRIPTION', tcolX[0], y+5);
-  doc.text('QTÉ',         tcolX[1]+tcolW[1]/2, y+5, {align:'center'});
-  doc.text('PRIX UNITAIRE', tcolX[2]+tcolW[2], y+5, {align:'right'});
-  doc.text('MONTANT',     tcolX[3]+tcolW[3], y+5, {align:'right'});
-  y+=8;
-  doc.setDrawColor(...HAIR); doc.line(M, y, W-M, y);
-  y+=2;
+  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(...HDR_TXT);
+  doc.text('DESCRIPTION',    tcolX[0]+2,   y+5.2);
+  doc.text('QTÉ',            tcolX[1]+tcolW[1]/2, y+5.2, {align:'center'});
+  doc.text('PRIX UNITAIRE',  tcolX[2]+tcolW[2],   y+5.2, {align:'right'});
+  doc.text('MONTANT',        tcolX[3]+tcolW[3],   y+5.2, {align:'right'});
+  y+=10;
 
-  // Lignes (sans zébrures, séparateurs hairline)
+  // ── TABLE ROWS
   let ht=0;
-  items.forEach((item)=>{
+  items.forEach((item,idx)=>{
     const total=item.qty*item.unit_price;
     ht+=total;
     const desc=doc.splitTextToSize(item.description||'—', tcolW[0]-4);
-    const rowH=Math.max(8, desc.length*4.4+3);
-
-    // Page break
+    const rowH=Math.max(8, desc.length*4.5+3);
     if(y+rowH>H-50){ doc.addPage(); y=M; }
 
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.2); doc.setTextColor(...INK);
-    doc.text(desc, tcolX[0], y+5);
+    // Alternating very light rows
+    if(idx%2===1){
+      doc.setFillColor(245,245,248);
+      doc.rect(M, y, W-2*M, rowH, 'F');
+    }
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...INK);
+    doc.text(desc, tcolX[0]+2, y+5);
     doc.setTextColor(...SUB);
-    doc.text(String(item.qty), tcolX[1]+tcolW[1]/2, y+5, {align:'center'});
-    doc.text(fmtMoneyPDF(item.unit_price), tcolX[2]+tcolW[2], y+5, {align:'right'});
+    doc.text(String(item.qty),            tcolX[1]+tcolW[1]/2, y+5, {align:'center'});
+    doc.text(fmtMoneyPDF(item.unit_price),tcolX[2]+tcolW[2],   y+5, {align:'right'});
     doc.setFont('helvetica','bold'); doc.setTextColor(...INK);
-    doc.text(fmtMoneyPDF(total), tcolX[3]+tcolW[3], y+5, {align:'right'});
+    doc.text(fmtMoneyPDF(total),          tcolX[3]+tcolW[3],   y+5, {align:'right'});
     y+=rowH;
-    doc.setDrawColor(...HAIR); doc.setLineWidth(0.15); doc.line(M, y, W-M, y);
-    y+=2;
+    doc.setDrawColor(...HAIR); doc.setLineWidth(0.15); doc.line(M, y, W-2*M+M, y);
   });
 
   if(items.length===0){
-    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...MUTED);
-    doc.text('Aucune ligne', M, y+5); y+=10;
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(...MUT);
+    doc.text('Aucune ligne', M, y+6); y+=12;
   }
+  y+=8;
 
-  y+=6;
-
-  // ── TOTAUX (alignés à droite, bloc soft)
+  // ── TOTAUX
   const tva=(quote.tva_rate||20)/100;
   const tvaAmt=ht*tva;
   const ttc=ht+tvaAmt;
-  const totBoxW=78;
+  const totBoxW=80;
   const totX=W-M-totBoxW;
 
-  const drawTotalRow=(label,val,opts={})=>{
-    doc.setFont('helvetica',opts.bold?'bold':'normal');
-    doc.setFontSize(opts.big?11:9);
-    doc.setTextColor(...(opts.big?INK:SUB));
-    doc.text(label, totX+4, y);
-    doc.setTextColor(...INK); doc.setFont('helvetica','bold');
-    doc.setFontSize(opts.big?13:9.2);
-    doc.text(fmtMoneyPDF(val), W-M-4, y, {align:'right'});
-    y+=opts.big?9:6;
+  const drawRow=(label,val,big=false)=>{
+    doc.setFont('helvetica',big?'bold':'normal');
+    doc.setFontSize(big?10.5:9);
+    doc.setTextColor(...(big?INK:SUB));
+    doc.text(label, totX+3, y);
+    doc.setFont('helvetica','bold'); doc.setFontSize(big?12:9);
+    doc.setTextColor(...INK);
+    doc.text(fmtMoneyPDF(val), W-M-2, y, {align:'right'});
+    y+=big?9:6.5;
   };
 
-  drawTotalRow('Sous-total HT', ht);
-  drawTotalRow(`TVA (${quote.tva_rate||20}%)`, tvaAmt);
-  y+=1;
-  doc.setDrawColor(...HAIR); doc.setLineWidth(0.2);
-  doc.line(totX, y, W-M, y); y+=5;
-  // Bloc TTC : fond très clair + filet accent à gauche
-  doc.setFillColor(...SOFT);
-  doc.roundedRect(totX, y-5, totBoxW, 12, 1.5, 1.5, 'F');
-  doc.setFillColor(...acc);
-  doc.rect(totX, y-5, 1.2, 12, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...MUTED);
-  doc.text('TOTAL TTC', totX+5, y);
-  doc.setFontSize(13); doc.setTextColor(...INK);
-  doc.text(fmtMoneyPDF(ttc), W-M-4, y+0.5, {align:'right'});
-  y+=14;
+  drawRow('Sous-total HT', ht);
+  drawRow(`TVA (${quote.tva_rate||20}%)`, tvaAmt);
+  y+=2;
+  // TTC block with accent color
+  doc.setFillColor(...ACC);
+  doc.rect(totX, y-4, totBoxW, 13, 'F');
+  const ttcDark=(ACC[0]*0.299+ACC[1]*0.587+ACC[2]*0.114)<128;
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.setTextColor(...(ttcDark?[255,255,255]:[20,20,20]));
+  doc.text('TOTAL TTC', totX+4, y+2);
+  doc.setFontSize(13);
+  doc.text(fmtMoneyPDF(ttc), W-M-3, y+2.5, {align:'right'});
+  y+=18;
 
   // ── CONDITIONS
   if(quote.conditions){
     if(y>H-55){ doc.addPage(); y=M; }
     y+=4;
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...MUT);
     doc.text('CONDITIONS', M, y); y+=5;
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...SUB);
     const lines=doc.splitTextToSize(quote.conditions, W-2*M);
@@ -451,33 +450,29 @@ function generatePDF(quote, user, sigDataUrl=null) {
     const sigH=34;
     if(y+sigH>H-25){ doc.addPage(); y=M; }
     y+=2;
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(...MUT);
     doc.text('SIGNATURE CLIENT — BON POUR ACCORD', M, y); y+=4;
-    doc.setDrawColor(...HAIR); doc.setLineWidth(0.2);
+    doc.setDrawColor(225,225,230); doc.setLineWidth(0.2);
     doc.roundedRect(M, y, 78, 28, 1.5, 1.5, 'S');
     try {
       const isJpeg = sigDataUrl.startsWith('data:image/jpeg')||sigDataUrl.startsWith('data:image/jpg');
       const fmt = isJpeg?'JPEG':'PNG';
       doc.addImage(sigDataUrl, fmt, M+3, y+3, 72, 22);
     } catch(e){
-      doc.setDrawColor(...MUTED); doc.line(M+4, y+20, M+74, y+20);
+      doc.setDrawColor(...MUT); doc.line(M+4, y+20, M+74, y+20);
     }
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...SUB);
     doc.text('Signé électroniquement le '+new Date().toLocaleDateString('fr-FR'), M, y+33);
     y+=38;
   }
 
-  // ── FOOTER (minimal, hairline + texte gris)
-  const footerY=H-14;
-  doc.setDrawColor(...HAIR); doc.setLineWidth(0.2);
-  doc.line(M, footerY, W-M, footerY);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...MUTED);
-  doc.text(`${quote.company_name||user?.name||'Defact'} · Document confidentiel`, M, footerY+5);
-  doc.text('Page 1', W-M, footerY+5, {align:'right'});
-
-  // Pastille accent en pied à gauche (signature visuelle)
-  doc.setFillColor(...acc);
-  doc.circle(M-3, footerY+4.2, 0.9, 'F');
+  // ── FOOTER — colored accent line at bottom
+  const footerY=H-12;
+  doc.setFillColor(...ACC);
+  doc.rect(0, footerY-2, W, 1.5, 'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,150,158);
+  doc.text(`${quote.company_name||user?.name||''} · Document confidentiel`, M, footerY+4);
+  doc.text('Page 1', W-M, footerY+4, {align:'right'});
 
   return doc;
 }
@@ -838,23 +833,33 @@ function TemplateGallery({onClose, onSelect, current, isPro, onShowUpgrade}) {
 
   return (
     <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal-box" style={{maxWidth:700,padding:28}}>
+      <div className="modal-box" style={{maxWidth:720,padding:28,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
           <div>
-            <h3 style={{margin:0,fontSize:20,fontWeight:700,fontFamily:'DM Sans,sans-serif',color:'#1a1916'}}>Templates <span className="brand-text">Premium</span></h3>
+            <h3 style={{margin:0,fontSize:20,fontWeight:700,fontFamily:'DM Sans,sans-serif',color:'#1a1916'}}>Choisir un template</h3>
             <p style={{margin:'4px 0 0',fontSize:13,color:'#7a7065'}}>{isPro?'22 templates disponibles':'Tous visibles en aperçu · Pro pour télécharger'}</p>
           </div>
-          <button className="btn btn-ghost" onClick={onClose} style={{padding:'4px 10px',fontSize:18}}>✕</button>
+          <button className="btn btn-ghost" onClick={onClose} style={{padding:'4px 10px',fontSize:18,color:'#5a524a'}}>✕</button>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:10,maxHeight:'60vh',overflowY:'auto',paddingRight:4}}>
-          {ALL_TEMPLATES.map(tpl=>(
-            <div key={tpl.id} onClick={()=>choose(tpl)} style={{border:`1px solid ${selected===tpl.id?'#16775a':'rgba(255,255,255,.1)'}`,borderRadius:12,padding:'12px 10px',cursor:'pointer',textAlign:'center',background:selected===tpl.id?'rgba(22,119,90,.1)':'rgba(255,255,255,.03)',transition:'all .2s',position:'relative'}}>
-              {tpl.pro&&!isPro&&<span style={{position:'absolute',top:5,right:5,fontSize:10,color:'#16775a',background:'rgba(15,23,42,.85)',borderRadius:4,padding:'1px 4px'}}>✦ Pro</span>}
-              <div style={{fontSize:20,marginBottom:6}}>{tpl.icon}</div>
-              <div style={{fontSize:11,fontWeight:600,color:selected===tpl.id?'#3aaa82':'#f5f5f4',marginBottom:2}}>{tpl.label}</div>
-              <div style={{fontSize:10,color:'#7a7065'}}>{tpl.sector}</div>
+          {ALL_TEMPLATES.map(tpl=>{
+            const tc=TPL_CONFIG[tpl.id]||TPL_CONFIG.classique;
+            const isSelected=selected===tpl.id;
+            return (
+            <div key={tpl.id} onClick={()=>choose(tpl)} style={{border:`2px solid ${isSelected?tc.header:'#e8e3dc'}`,borderRadius:12,padding:0,cursor:'pointer',textAlign:'center',background:'#fff',transition:'all .2s',position:'relative',overflow:'hidden',boxShadow:isSelected?`0 4px 16px ${tc.header}40`:'0 1px 3px rgba(0,0,0,.06)'}}>
+              {tpl.pro&&!isPro&&<span style={{position:'absolute',top:5,right:5,fontSize:9,color:'#fff',background:'rgba(22,119,90,.9)',borderRadius:3,padding:'1px 4px',zIndex:1}}>✦ Pro</span>}
+              {/* Color preview band */}
+              <div style={{height:36,background:tc.header,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 8px'}}>
+                <div style={{fontSize:9,fontWeight:700,color:tc.headerText,opacity:.8,letterSpacing:'.05em'}}>DEVIS</div>
+                <div style={{width:10,height:10,borderRadius:3,background:tc.accent,opacity:.9}}/>
+              </div>
+              <div style={{padding:'8px 6px'}}>
+                <div style={{fontSize:11,fontWeight:700,color:isSelected?tc.header:'#1a1916',marginBottom:2}}>{tpl.label}</div>
+                <div style={{fontSize:10,color:'#a89e92'}}>{tpl.sector}</div>
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
         <div style={{display:'flex',gap:10,marginTop:20}}>
           <button className="btn btn-ghost" onClick={onClose} style={{flex:1}}>Annuler</button>
@@ -1669,285 +1674,383 @@ function QuoteForm({user, onShowUpgrade, onShowAuth, onRelanceUpdate}) {
 
   const tpl=ALL_TEMPLATES.find(t=>t.id===template)||ALL_TEMPLATES[0];
   const quotaPercent=quota?((quota.quotes.used/quota.quotes.limit)*100):0;
+  const cfg=TPL_CONFIG[template]||TPL_CONFIG.classique;
+
+  // Build a preview that matches the PDF exactly
+  function QuotePreview() {
+    const hdrDark=(()=>{const h=cfg.header.replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return(r*0.299+g*0.587+b*0.114)<128;})();
+    const txtCol=hdrDark?'#fff':cfg.headerText;
+    const accentDark=(()=>{const h=cfg.accent.replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return(r*0.299+g*0.587+b*0.114)<128;})();
+
+    return (
+      <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10,lineHeight:1.4,background:'#fff',borderRadius:12,overflow:'hidden',boxShadow:'0 4px 24px rgba(0,0,0,.1)'}}>
+        {/* Header band */}
+        <div style={{background:cfg.header,padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{fontWeight:700,fontSize:12,color:txtCol,letterSpacing:'.01em'}}>{form.company||'Votre entreprise'}</div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:7,color:txtCol,opacity:.7,letterSpacing:'.1em',textTransform:'uppercase'}}>DEVIS</div>
+            <div style={{fontWeight:700,fontSize:11,color:txtCol,fontFamily:'JetBrains Mono,monospace'}}>{quoteNum||'DEV-—'}</div>
+          </div>
+        </div>
+        {/* Accent line */}
+        <div style={{height:3,background:cfg.accent}} />
+
+        <div style={{padding:'12px 16px'}}>
+          {/* META */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
+            {[
+              ['ÉMIS LE', new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})],
+              ['VALIDITÉ', `${form.validity_days||30} jours`],
+              ['ÉCHÉANCE', (()=>{const e=new Date();e.setDate(e.getDate()+(parseInt(form.validity_days)||30));return e.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});})()],
+            ].map(([l,v],i)=>(
+              <div key={i}>
+                <div style={{fontSize:6.5,color:'#9ca3af',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:2}}>{l}</div>
+                <div style={{fontSize:9,fontWeight:600,color:'#111'}}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* DE / POUR */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0f0f0'}}>
+            {[['DE',form.company||'—'],[`POUR`,form.client_name||'—']].map(([l,v],i)=>(
+              <div key={i}>
+                <div style={{fontSize:6.5,color:'#9ca3af',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:3}}>{l}</div>
+                <div style={{fontWeight:600,fontSize:9,color:'#111'}}>{v}</div>
+                {i===1&&form.client_address&&<div style={{fontSize:8,color:'#6b7280',marginTop:2}}>{form.client_address}</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* TABLE HEADER */}
+          <div style={{background:cfg.header,borderRadius:4,padding:'5px 8px',display:'grid',gridTemplateColumns:'1fr 30px 60px',gap:4,marginBottom:0}}>
+            {['DÉSIGNATION','QTÉ','MONTANT'].map((h,i)=>(
+              <div key={i} style={{fontSize:6.5,fontWeight:700,color:txtCol,letterSpacing:'.08em',textAlign:i===0?'left':'right'}}>{h}</div>
+            ))}
+          </div>
+
+          {/* TABLE ROWS */}
+          {items.filter(i=>i.description).length===0?(
+            <div style={{padding:'10px 8px',textAlign:'center',color:'#c0c0c8',fontSize:9}}>Aucune prestation</div>
+          ):items.filter(i=>i.description).map((item,i)=>(
+            <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 30px 60px',gap:4,padding:'6px 8px',borderBottom:'1px solid #f5f5f7',background:i%2===1?'#fafafa':'#fff'}}>
+              <div style={{fontSize:9,color:'#111'}}>{item.description}</div>
+              <div style={{fontSize:9,color:'#6b7280',textAlign:'right'}}>{item.qty}</div>
+              <div style={{fontSize:9,fontWeight:600,color:'#111',textAlign:'right'}}>{fmtMoney((item.qty||0)*(item.unit_price||0))}</div>
+            </div>
+          ))}
+
+          {/* TOTAUX */}
+          <div style={{marginTop:10}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#6b7280',marginBottom:3}}>
+              <span>Sous-total HT</span><span>{fmtMoney(preview.ht)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#6b7280',marginBottom:6}}>
+              <span>TVA ({form.tva_rate}%)</span><span>{fmtMoney(preview.tva)}</span>
+            </div>
+            <div style={{background:cfg.accent,borderRadius:5,padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:7.5,fontWeight:700,color:accentDark?'#fff':'#111',letterSpacing:'.08em',textTransform:'uppercase'}}>TOTAL TTC</span>
+              <span style={{fontSize:13,fontWeight:700,color:accentDark?'#fff':'#111'}}>{fmtMoney(preview.ttc)}</span>
+            </div>
+          </div>
+
+          {/* Signature */}
+          {sigData&&(
+            <div style={{marginTop:10,paddingTop:8,borderTop:'1px solid #f0f0f0'}}>
+              <div style={{fontSize:6.5,color:'#9ca3af',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:4}}>SIGNATURE — BON POUR ACCORD</div>
+              <img src={sigData} alt="sig" style={{height:28,maxWidth:80,objectFit:'contain',border:'1px solid #e0e0e0',borderRadius:4,padding:2,background:'#fff'}} />
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{marginTop:12,paddingTop:8,borderTop:'3px solid '+cfg.accent,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:7,color:'#c0c0c8'}}>{form.company||'Votre entreprise'} · Document confidentiel</div>
+            <div style={{fontSize:7,color:'#c0c0c8'}}>Page 1</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{maxWidth:1120,margin:'0 auto',padding:'28px 20px'}}>
+    <div style={{maxWidth:1200,margin:'0 auto',padding:'24px 20px'}}>
 
       {/* Quota banner */}
       {user&&quota&&quota.plan==='starter'&&(
-        <div className="card card-gold fade-up" style={{marginBottom:20,padding:'14px 18px'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12,marginBottom:10}}>
-            <div style={{display:'flex',gap:24,flexWrap:'wrap'}}>
-              <span style={{fontSize:13,color:quota.quotes.remaining===0?'#ef4444':'#3aaa82',fontWeight:500}}>
+        <div style={{marginBottom:20,padding:'12px 18px',background:'#fff',border:'1px solid #e0dbd4',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+          <div>
+            <div style={{display:'flex',gap:20,flexWrap:'wrap',marginBottom:8}}>
+              <span style={{fontSize:13,color:quota.quotes.remaining===0?'#ef4444':'#16775a',fontWeight:500}}>
                 Devis : <strong>{quota.quotes.used}/{quota.quotes.limit}</strong>
                 {quota.quotes.remaining>0?` · ${quota.quotes.remaining} restant(s)`:' · Limite atteinte'}
               </span>
-              <span style={{fontSize:13,color:quota.signatures.remaining===0?'#ef4444':'#3aaa82',fontWeight:500}}>
+              <span style={{fontSize:13,color:quota.signatures.remaining===0?'#ef4444':'#16775a',fontWeight:500}}>
                 Signatures : <strong>{quota.signatures.used}/{quota.signatures.limit}</strong>
                 {quota.signatures.remaining>0?` · ${quota.signatures.remaining} restante(s)`:' · Limite atteinte'}
               </span>
             </div>
-            {(quota.quotes.remaining===0||quota.signatures.remaining===0)&&(
-              <button className="btn btn-gold" onClick={()=>onShowUpgrade()} style={{fontSize:12,padding:'6px 14px'}}>✦ Passer au Pro</button>
-            )}
+            <div className="quota-bar" style={{width:200}}>
+              <div className={`quota-fill ${quotaPercent>=80?'danger':''}`} style={{width:`${Math.min(100,quotaPercent)}%`}}/>
+            </div>
           </div>
-          <div className="quota-bar">
-            <div className={`quota-fill ${quotaPercent>=80?'danger':''}`} style={{width:`${Math.min(100,quotaPercent)}%`}}/>
-          </div>
+          {(quota.quotes.remaining===0||quota.signatures.remaining===0)&&(
+            <button className="btn btn-gold" onClick={()=>onShowUpgrade()} style={{fontSize:12,padding:'8px 16px'}}>✦ Passer au Pro</button>
+          )}
         </div>
       )}
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 360px',gap:24,alignItems:'start'}} className="col-2">
+      <div style={{display:'grid',gridTemplateColumns:'1fr 380px',gap:28,alignItems:'start'}} className="col-2">
 
-        {/* LEFT */}
-        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        {/* ═══ LEFT COLUMN — Form ═══ */}
+        <div style={{display:'flex',flexDirection:'column',gap:20}}>
 
-          {/* Template */}
-          <div className="card">
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-              <div style={{fontWeight:700,fontSize:14,color:'#1a1916',display:'flex',alignItems:'center',gap:8}}>
-                Template
-                <span className={`badge ${isPro()?'status-accepted':'status-draft'}`} style={{fontSize:10}}>
-                  {isPro()?'22 disponibles':'Aperçu · Pro pour DL'}
-                </span>
-              </div>
-              <button className="btn btn-outline" onClick={()=>setModal('gallery')} style={{fontSize:12,padding:'6px 12px'}}>Voir tous ✦</button>
-            </div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              {ALL_TEMPLATES.slice(0,6).map(t=>(
-                <button key={t.id} onClick={()=>selectTemplate(t.id)} className={`tpl-btn ${template===t.id?'active':''}`}>
-                  {t.icon} {t.label} {t.pro&&!isPro()&&<span style={{color:'#16775a',fontSize:10}}> ✦</span>}
-                </button>
-              ))}
-            </div>
-            {tpl&&<div style={{marginTop:10,fontSize:12,color:'#7a7065'}}>Sélectionné : <strong style={{color:'#16775a'}}>{tpl.label}</strong> · {tpl.sector}</div>}
-          </div>
-
-          {/* Info */}
-          <div className="card">
-            <div style={{fontWeight:700,fontSize:14,color:'#1a1916',marginBottom:16}}>Informations</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}} className="stack-mobile">
-              <div style={{gridColumn:'1/-1'}}>
-                <label>Votre entreprise *</label>
-                <input className="inp" placeholder="Mon Entreprise SARL" value={form.company} onChange={setF('company')} />
-              </div>
-              <div>
-                <label>Nom du client *</label>
-                <input className="inp" placeholder="Jean Martin" value={form.client_name} onChange={setF('client_name')} />
-              </div>
-              <div>
-                <label>Email client</label>
-                <input className="inp" type="email" placeholder="client@mail.com" value={form.client_email} onChange={setF('client_email')} />
-              </div>
-              <div style={{gridColumn:'1/-1'}}>
-                <label>Adresse client</label>
-                <input className="inp" placeholder="12 rue de la Paix, 75001 Paris" value={form.client_address} onChange={setF('client_address')} />
-              </div>
-              <div>
-                <label>TVA</label>
-                <select className="sel" value={form.tva_rate} onChange={setF('tva_rate')}>
-                  <option value={20}>20% — Normal</option>
-                  <option value={10}>10% — Intermédiaire</option>
-                  <option value={5.5}>5.5% — Réduit</option>
-                  <option value={0}>0% — Exonéré</option>
-                </select>
-              </div>
-              <div>
-                <label>Validité</label>
-                <select className="sel" value={form.validity_days} onChange={setF('validity_days')}>
-                  <option value={15}>15 jours</option>
-                  <option value={30}>30 jours</option>
-                  <option value={60}>60 jours</option>
-                  <option value={90}>90 jours</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="card">
-            <div style={{fontWeight:700,fontSize:14,color:'#1a1916',marginBottom:14}}>Prestations *</div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 70px 110px 36px',gap:6}}>
-                {['Désignation','Qté','P.U. HT',''].map((h,i)=><div key={i} style={{fontSize:11,fontWeight:600,color:'#7a7065',textTransform:'uppercase',letterSpacing:'.05em',padding:'0 2px'}}>{h}</div>)}
-              </div>
-              {items.map((item,i)=>(
-                <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 70px 110px 36px',gap:6,alignItems:'center'}}>
-                  <input className="inp" placeholder={`Prestation ${i+1}`} value={item.description} onChange={e=>setItem(i,'description',e.target.value)} />
-                  <input className="inp" type="number" placeholder="1" min="0" step="0.1" value={item.qty} onChange={e=>setItem(i,'qty',e.target.value)} style={{textAlign:'center'}} />
-                  <input className="inp" type="number" placeholder="0.00" min="0" step="0.01" value={item.unit_price} onChange={e=>setItem(i,'unit_price',e.target.value)} style={{textAlign:'right'}} />
-                  <button onClick={()=>removeLine(i)} style={{width:36,height:40,border:'1px solid rgba(220,74,58,.15)',borderRadius:8,background:'transparent',color:'#dc4a3a',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='rgba(220,74,58,.06)'}
-                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>×</button>
-                </div>
-              ))}
-              <button className="btn btn-ghost" onClick={addLine} style={{justifyContent:'center',border:'1px dashed rgba(255,255,255,.12)',borderRadius:10,marginTop:4,fontSize:13}}>+ Ajouter une ligne</button>
-            </div>
-          </div>
-
-          {/* Conditions */}
-          <div className="card">
-            <label>Conditions & Mentions légales</label>
-            <textarea className="ta" placeholder="Acompte de 30% à la commande. Délai d'exécution : 5 jours ouvrés..." value={form.conditions} onChange={setF('conditions')} />
-          </div>
-
-          {/* Signature display */}
-          {sigData&&(
-            <div className="card card-gold" style={{padding:'14px 18px',display:'flex',alignItems:'center',gap:12}}>
-              <div style={{width:40,height:28,borderRadius:6,overflow:'hidden',border:'1px solid rgba(22,119,90,.25)',background:'rgba(250,248,242,.9)',flexShrink:0}}>
-                <img src={sigData} alt="sig" style={{width:'100%',height:'100%',objectFit:'contain'}} />
-              </div>
-              <div>
-                <div style={{fontWeight:600,color:'#16775a',fontSize:13}}>Signature enregistrée ✦</div>
-                <div style={{fontSize:12,color:'#7a7065'}}>Sera incluse dans le PDF</div>
-              </div>
-              <button className="btn btn-ghost" onClick={()=>setSigData(null)} style={{marginLeft:'auto',fontSize:12,color:'#dc4a3a',padding:'4px 8px'}}>Supprimer</button>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <button className="btn btn-gold" onClick={handleDownload} disabled={saving} style={{gridColumn:'1/-1',padding:'14px',fontSize:15}}>
-              {saving?<><Spinner/> Génération…</>:'⬇ Télécharger le devis PDF'}
-            </button>
-            <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} setModal('email'); }}>
-              ✉ Envoyer par email
-            </button>
-            <button className="btn btn-outline" onClick={handleSig}>
-              ✦ Signer le devis{!isPro()&&<span style={{fontSize:11,color:'#7a7065'}}> · Pro</span>}
-            </button>
-            <button className="btn btn-outline" onClick={()=>{ if(!isPro()){onShowUpgrade();return;} if(!savedQuote){toast('Téléchargez d\'abord le devis','info');return;} api(`/invoices/from-quote/${savedQuote.id}`,'POST').then(d=>toast(`Facture ${d.invoice.number} créée ✦`)).catch(e=>toast(e.message,'error')); }}>
-              ⟳ Convertir en facture
-            </button>
-            <button className="btn btn-outline" onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade();return;} setModal('stats'); }}>
-              ◈ Statistiques
-            </button>
-            <button className="btn btn-outline" style={{gridColumn:'1/-1',borderColor:(user?.plan==='team'||user?.plan==='pro')?'rgba(22,119,90,.35)':'rgba(255,255,255,.1)',position:'relative'}} onClick={async ()=>{ if(!user){onShowAuth();return;} if(!savedQuote?.id){ toast('Sauvegarde du devis en cours…','info'); const saved=await saveQuote(); if(!saved) return; setSavedQuote(saved); setQuoteNum(saved.number); } setModal('relance'); }}>
-              <span>⟳ Relances automatiques</span>
-              {isPro()?(
-                <span style={{marginLeft:6,fontSize:11,background:'#f0faf6',border:'1px solid #b8ddd1',borderRadius:4,padding:'1px 6px',color:'#16775a'}}>{user.plan==='team'?'◆ Actif':'✦ Actif'}</span>
-              ):(
-                <span style={{marginLeft:6,fontSize:11,color:'#7a7065'}}> · Plan Équipe</span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* RIGHT — Preview */}
-        <div style={{position:'sticky',top:80}}>
-          <div className="card" style={{padding:0,overflow:'hidden',border:'1px solid #e8e3dc',boxShadow:'0 2px 12px rgba(26,25,22,.06)'}}>
-            {/* Preview header bar */}
-            <div style={{background:'#fff',padding:'12px 18px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div>
-                <div style={{fontWeight:700,fontSize:13,color:'#1a1916',fontFamily:'DM Sans,sans-serif'}}>Aperçu du devis</div>
-                <div style={{fontSize:11,color:'#a89e92',marginTop:1}}>Template : {tpl?.label} · {tpl?.sector}</div>
-              </div>
-              <div style={{fontSize:9,fontWeight:700,color:'#16775a',background:'#f0faf6',border:'1px solid #b8ddd1',borderRadius:5,padding:'3px 8px',letterSpacing:'.08em'}}>LIVE</div>
-            </div>
-
-            {(()=>{ const tc=TPL_COLORS[template]||{bg:'#0e0d0b',text:'#ffffff',accent:'#c9a84c'}; return (
-            <div id="pdfPreview" style={{padding:20,background:'#fff',fontFamily:'DM Sans,sans-serif'}}>
-
-              {/* PDF Header — company + ref (édito épuré, correspond au PDF) */}
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10,paddingBottom:10,borderBottom:'1px solid #ebebeb'}}>
-                <div style={{display:'flex',alignItems:'center',gap:7}}>
-                  <div style={{width:8,height:8,borderRadius:'50%',background:`rgb(${({
-                    classique:'20,20,22',moderne:'88,80,236',artisan:'178,98,42',minimal:'34,34,34',
-                    bold:'17,17,17',blue_corp:'26,86,160',tech:'99,102,241',nature:'58,140,90',
-                    luxe:'166,124,46',sante:'14,165,160',immobilier:'51,71,99',event:'185,55,140',
-                    restaurant:'200,80,40',auto:'60,60,64',beaute:'224,108,160',juridique:'150,30,52',
-                    archi:'110,110,108',photo:'28,28,30',transport:'20,90,200',formation:'37,118,210',
-                    nettoyage:'0,170,180',it:'60,80,140',mode:'180,140,90'
-                  })[template]||'20,20,22'})`}}/>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:13,color:'#111113',lineHeight:1.2}}>{form.company||'Votre entreprise'}</div>
-                  </div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:7,color:'#9c9ca3',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:2}}>DEVIS</div>
-                  <div style={{fontWeight:700,fontSize:12,color:'#111113',fontFamily:'JetBrains Mono,monospace'}}>{quoteNum||'DEV-—'}</div>
-                </div>
-              </div>
-
-              {/* Meta — date/validité */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
-                {[
-                  ['ÉMIS LE', new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'})],
-                  ['VALIDITÉ', `${form.validity_days||30} jours`],
-                  ['ÉCHÉANCE', (()=>{const e=new Date();e.setDate(e.getDate()+(parseInt(form.validity_days)||30));return e.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});})()],
-                ].map(([label,val],i)=>(
-                  <div key={i}>
-                    <div style={{fontSize:7,color:'#9c9ca3',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:2}}>{label}</div>
-                    <div style={{fontSize:10,fontWeight:600,color:'#111113'}}>{val}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* DE / POUR */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+          {/* ── SECTION 1: Template */}
+          <div style={{background:'#fff',border:'1px solid #e8e3dc',borderRadius:16,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:32,height:32,borderRadius:8,background:'#f5f4f1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🎨</div>
                 <div>
-                  <div style={{fontSize:7,color:'#9c9ca3',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:3}}>DE</div>
-                  <div style={{fontWeight:600,fontSize:10,color:'#111113',marginBottom:1}}>{form.company||'—'}</div>
-                </div>
-                <div>
-                  <div style={{fontSize:7,color:'#9c9ca3',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:3}}>POUR</div>
-                  <div style={{fontWeight:600,fontSize:10,color:'#111113',marginBottom:1}}>{form.client_name||'—'}</div>
-                  {form.client_address&&<div style={{fontSize:9,color:'#6e6e75'}}>{form.client_address}</div>}
+                  <div style={{fontWeight:700,fontSize:14,color:'#1a1916'}}>Template du devis</div>
+                  <div style={{fontSize:11,color:'#a89e92',marginTop:1}}>{isPro()?'22 templates · cliquez pour changer':'1 gratuit · Pro pour débloquer les 21 autres'}</div>
                 </div>
               </div>
-
-              {/* Tableau prestations */}
-              <div style={{borderTop:'1px solid #ebebeb',marginBottom:0}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 36px 72px',gap:0,padding:'5px 0',borderBottom:'1px solid #ebebeb'}}>
-                  {['DÉSIGNATION','QTÉ','MONTANT'].map((h,i)=>(
-                    <div key={i} style={{fontSize:7,fontWeight:700,color:'#9c9ca3',letterSpacing:'.08em',textAlign:i===0?'left':i===1?'center':'right'}}>{h}</div>
-                  ))}
-                </div>
-                {items.filter(i=>i.description).map((item,i)=>(
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 36px 72px',gap:0,padding:'6px 0',borderBottom:'1px solid #f3f3f4'}}>
-                    <div style={{fontSize:10,color:'#111113'}}>{item.description}</div>
-                    <div style={{fontSize:10,color:'#6e6e75',textAlign:'center'}}>{item.qty}</div>
-                    <div style={{fontSize:10,fontWeight:600,color:'#111113',textAlign:'right'}}>{fmtMoney((item.qty||0)*(item.unit_price||0))}</div>
-                  </div>
-                ))}
-                {!items.some(i=>i.description)&&(
-                  <div style={{padding:'14px 0',textAlign:'center',color:'#c8c8cc',fontSize:11}}>Aucune prestation</div>
+              <button className="btn btn-outline" onClick={()=>setModal('gallery')} style={{fontSize:12,padding:'6px 14px'}}>Tous les templates →</button>
+            </div>
+            <div style={{padding:'16px 20px'}}>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {ALL_TEMPLATES.slice(0,8).map(t=>{
+                  const tc=TPL_CONFIG[t.id]||TPL_CONFIG.classique;
+                  const isActive=template===t.id;
+                  return (
+                    <button key={t.id} onClick={()=>selectTemplate(t.id)} style={{
+                      display:'flex',alignItems:'center',gap:6,padding:'8px 12px',
+                      border:`2px solid ${isActive?tc.header:'#e8e3dc'}`,
+                      borderRadius:10,background:isActive?tc.header+'18':'#fff',
+                      cursor:'pointer',transition:'all .18s',position:'relative',
+                      fontFamily:'DM Sans,sans-serif',fontSize:12,fontWeight:isActive?700:500,
+                      color:isActive?tc.header:'#5a524a',
+                    }}>
+                      <div style={{width:10,height:10,borderRadius:3,background:tc.header,flexShrink:0}}/>
+                      {t.label}
+                      {t.pro&&!isPro()&&<span style={{fontSize:8,color:'#16775a',marginLeft:2}}>✦</span>}
+                    </button>
+                  );
+                })}
+                {ALL_TEMPLATES.length>8&&(
+                  <button onClick={()=>setModal('gallery')} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 12px',border:'2px dashed #e0dbd4',borderRadius:10,background:'transparent',cursor:'pointer',fontFamily:'DM Sans,sans-serif',fontSize:12,color:'#a89e92',fontWeight:500}}>
+                    +{ALL_TEMPLATES.length-8} autres
+                  </button>
                 )}
               </div>
-
-              {/* Totaux */}
-              <div style={{marginTop:8,paddingTop:6}}>
-                {[{l:'Sous-total HT',v:fmtMoney(preview.ht)},{l:`TVA (${form.tva_rate}%)`,v:fmtMoney(preview.tva)}].map((r,i)=>(
-                  <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#6e6e75',marginBottom:3}}>
-                    <span>{r.l}</span><span>{r.v}</span>
+              {tpl&&(
+                <div style={{marginTop:12,padding:'10px 14px',background:cfg.header+'0f',border:`1px solid ${cfg.header}30`,borderRadius:8,display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:20,height:20,borderRadius:5,background:cfg.header,flexShrink:0}}/>
+                  <div style={{flex:1}}>
+                    <span style={{fontWeight:700,fontSize:12,color:'#1a1916'}}>{tpl.label}</span>
+                    <span style={{fontSize:12,color:'#a89e92',marginLeft:6}}>· {tpl.sector}</span>
                   </div>
-                ))}
-                <div style={{borderTop:'1px solid #ebebeb',marginTop:5,paddingTop:5}}>
-                  <div style={{background:'#f9f9f9',borderRadius:5,borderLeft:'2.5px solid #16775a',padding:'6px 10px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span style={{fontSize:8,fontWeight:700,color:'#9c9ca3',letterSpacing:'.08em',textTransform:'uppercase'}}>TOTAL TTC</span>
-                    <span style={{fontSize:14,fontWeight:700,color:'#111113'}}>{fmtMoney(preview.ttc)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {sigData&&(
-                <div style={{marginTop:10,paddingTop:8,borderTop:'1px solid #ebebeb'}}>
-                  <div style={{fontSize:7,color:'#9c9ca3',fontWeight:700,marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}}>SIGNATURE CLIENT — BON POUR ACCORD</div>
-                  <div style={{border:'1px solid #e8e3dc',borderRadius:5,padding:4,display:'inline-block',background:'#fff'}}>
-                    <img src={sigData} alt="signature" style={{height:36,maxWidth:110,objectFit:'contain',display:'block'}} />
+                  <div style={{display:'flex',gap:6}}>
+                    <div style={{width:14,height:14,borderRadius:3,background:cfg.header}} title="Couleur header"/>
+                    <div style={{width:14,height:14,borderRadius:3,background:cfg.accent}} title="Couleur accent"/>
                   </div>
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* Footer PDF */}
-              <div style={{marginTop:14,paddingTop:8,borderTop:'1px solid #ebebeb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div style={{fontSize:8,color:'#c8c8cc'}}>{form.company||'Votre entreprise'} · Document confidentiel</div>
-                <div style={{fontSize:8,color:'#c8c8cc'}}>Page 1</div>
+          {/* ── SECTION 2: Parties */}
+          <div style={{background:'#fff',border:'1px solid #e8e3dc',borderRadius:16,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'#f5f4f1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>👤</div>
+              <div>
+                <div style={{fontWeight:700,fontSize:14,color:'#1a1916'}}>Émetteur & Client</div>
+                <div style={{fontSize:11,color:'#a89e92',marginTop:1}}>Vos coordonnées et celles de votre client</div>
               </div>
             </div>
-            ); })()}
+            <div style={{padding:'20px'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}} className="stack-mobile">
+                {/* Émetteur */}
+                <div style={{background:'#f9f8f7',border:'1px solid #ede9e3',borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{fontSize:10,fontWeight:700,color:'#a89e92',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+                    <div style={{width:6,height:6,borderRadius:2,background:'#16775a'}}/>DE (vous)
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                    <div><label>Votre entreprise *</label><input className="inp" placeholder="Mon Entreprise SARL" value={form.company} onChange={setF('company')} /></div>
+                  </div>
+                </div>
+                {/* Client */}
+                <div style={{background:'#f9f8f7',border:'1px solid #ede9e3',borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{fontSize:10,fontWeight:700,color:'#a89e92',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+                    <div style={{width:6,height:6,borderRadius:2,background:'#6366f1'}}/>POUR (client)
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                    <div><label>Nom du client *</label><input className="inp" placeholder="Jean Martin / Acme Corp" value={form.client_name} onChange={setF('client_name')} /></div>
+                    <div><label>Email client</label><input className="inp" type="email" placeholder="client@mail.com" value={form.client_email} onChange={setF('client_email')} /></div>
+                    <div><label>Adresse</label><input className="inp" placeholder="12 rue de la Paix, 75001 Paris" value={form.client_address} onChange={setF('client_address')} /></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Paramètres */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:16}}>
+                <div>
+                  <label>Taux de TVA</label>
+                  <select className="sel" value={form.tva_rate} onChange={setF('tva_rate')}>
+                    <option value={20}>20% — Normal</option>
+                    <option value={10}>10% — Intermédiaire</option>
+                    <option value={5.5}>5.5% — Réduit</option>
+                    <option value={0}>0% — Exonéré / Auto-entrepreneur</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Validité du devis</label>
+                  <select className="sel" value={form.validity_days} onChange={setF('validity_days')}>
+                    <option value={15}>15 jours</option>
+                    <option value={30}>30 jours</option>
+                    <option value={60}>60 jours</option>
+                    <option value={90}>90 jours</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── SECTION 3: Prestations */}
+          <div style={{background:'#fff',border:'1px solid #e8e3dc',borderRadius:16,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:32,height:32,borderRadius:8,background:'#f5f4f1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📋</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14,color:'#1a1916'}}>Prestations</div>
+                  <div style={{fontSize:11,color:'#a89e92',marginTop:1}}>Listez chaque service ou produit à facturer</div>
+                </div>
+              </div>
+              <div style={{background:'#f0faf6',border:'1px solid #b8ddd1',borderRadius:8,padding:'4px 12px',fontSize:13,fontWeight:700,color:'#16775a'}}>
+                {fmtMoney(preview.ttc)} TTC
+              </div>
+            </div>
+            <div style={{padding:'20px'}}>
+              {/* En-tête colonnes */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 80px 120px 40px',gap:8,marginBottom:8,padding:'0 4px'}}>
+                {['Désignation','Qté','Prix unit. HT',''].map((h,i)=><div key={i} style={{fontSize:11,fontWeight:600,color:'#a89e92',textTransform:'uppercase',letterSpacing:'.05em',textAlign:i===1||i===2?'center':'left'}}>{h}</div>)}
+              </div>
+              {/* Lignes */}
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                {items.map((item,i)=>(
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 80px 120px 40px',gap:8,alignItems:'center',background:i%2===0?'#fafafa':'#fff',border:'1px solid #f0ede8',borderRadius:10,padding:'8px 10px'}}>
+                    <input className="inp" style={{background:'transparent',border:'none',padding:'4px 0',fontSize:13}} placeholder={`Prestation ${i+1}`} value={item.description} onChange={e=>setItem(i,'description',e.target.value)} />
+                    <input className="inp" type="number" style={{background:'transparent',border:'none',padding:'4px',textAlign:'center',fontSize:13}} placeholder="1" min="0" step="0.1" value={item.qty} onChange={e=>setItem(i,'qty',e.target.value)} />
+                    <input className="inp" type="number" style={{background:'transparent',border:'none',padding:'4px',textAlign:'right',fontSize:13}} placeholder="0,00 €" min="0" step="0.01" value={item.unit_price} onChange={e=>setItem(i,'unit_price',e.target.value)} />
+                    <button onClick={()=>removeLine(i)} style={{width:34,height:34,border:'1px solid rgba(220,74,58,.2)',borderRadius:8,background:'transparent',color:'#dc4a3a',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s',flexShrink:0}}
+                      onMouseEnter={e=>e.currentTarget.style.background='rgba(220,74,58,.06)'}
+                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>×</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={addLine} style={{marginTop:12,width:'100%',padding:'10px',border:'1.5px dashed #d4cfc7',borderRadius:10,background:'transparent',color:'#7a7065',cursor:'pointer',fontFamily:'DM Sans,sans-serif',fontSize:13,fontWeight:500,transition:'all .18s',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='#b8ddd1';e.currentTarget.style.color='#16775a';}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='#d4cfc7';e.currentTarget.style.color='#7a7065';}}>
+                + Ajouter une ligne
+              </button>
+
+              {/* Récap totaux */}
+              <div style={{marginTop:16,padding:'14px 16px',background:'#f9f8f7',border:'1px solid #ede9e3',borderRadius:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#7a7065',marginBottom:6}}>
+                  <span>Sous-total HT</span><span style={{fontWeight:600,color:'#1a1916'}}>{fmtMoney(preview.ht)}</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#7a7065',marginBottom:10}}>
+                  <span>TVA ({form.tva_rate}%)</span><span style={{fontWeight:600,color:'#1a1916'}}>{fmtMoney(preview.tva)}</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:15,fontWeight:700,color:'#1a1916',paddingTop:10,borderTop:'2px solid #e8e3dc'}}>
+                  <span>Total TTC</span><span style={{color:'#16775a'}}>{fmtMoney(preview.ttc)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── SECTION 4: Conditions + Signature */}
+          <div style={{background:'#fff',border:'1px solid #e8e3dc',borderRadius:16,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'#f5f4f1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>📝</div>
+              <div style={{fontWeight:700,fontSize:14,color:'#1a1916'}}>Conditions & Signature</div>
+            </div>
+            <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:14}}>
+              <div>
+                <label>Conditions générales & mentions légales</label>
+                <textarea className="ta" placeholder="Ex: Acompte de 30% à la commande. Délai de paiement : 30 jours. RIB disponible sur demande." value={form.conditions} onChange={setF('conditions')} style={{minHeight:80}} />
+              </div>
+              {sigData?(
+                <div style={{padding:'12px 16px',background:'#f0faf6',border:'1px solid #b8ddd1',borderRadius:10,display:'flex',alignItems:'center',gap:12}}>
+                  <img src={sigData} alt="sig" style={{height:36,maxWidth:100,objectFit:'contain',border:'1px solid #b8ddd1',borderRadius:6,padding:4,background:'#fff'}} />
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:13,color:'#16775a'}}>✦ Signature enregistrée</div>
+                    <div style={{fontSize:11,color:'#7a7065'}}>Sera incluse dans le PDF téléchargé</div>
+                  </div>
+                  <button className="btn btn-ghost" onClick={()=>setSigData(null)} style={{fontSize:12,color:'#dc4a3a',padding:'4px 10px'}}>Supprimer</button>
+                </div>
+              ):(
+                <button className="btn btn-outline" onClick={handleSig} style={{width:'100%',justifyContent:'center'}}>
+                  ✦ Ajouter votre signature{!isPro()&&<span style={{fontSize:11,color:'#a89e92'}}> · Pro</span>}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── SECTION 5: Actions */}
+          <div style={{background:'#fff',border:'1px solid #e8e3dc',borderRadius:16,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'#f5f4f1',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>⚡</div>
+              <div style={{fontWeight:700,fontSize:14,color:'#1a1916'}}>Actions</div>
+            </div>
+            <div style={{padding:'20px',display:'flex',flexDirection:'column',gap:10}}>
+              {/* CTA principal */}
+              <button className="btn btn-gold" onClick={handleDownload} disabled={saving} style={{width:'100%',padding:'14px',fontSize:15,justifyContent:'center'}}>
+                {saving?<><Spinner light/>&nbsp; Génération du PDF…</>:<>⬇&nbsp; Télécharger le devis PDF</>}
+              </button>
+              {/* Actions secondaires */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={()=>{ if(!user){onShowAuth();return;} setModal('email'); }}>
+                  ✉ Envoyer par email
+                </button>
+                <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={()=>{ if(!isPro()){onShowUpgrade();return;} if(!savedQuote){toast("Téléchargez d'abord le devis",'info');return;} api(`/invoices/from-quote/${savedQuote.id}`,'POST').then(d=>toast(`Facture ${d.invoice.number} créée ✦`)).catch(e=>toast(e.message,'error')); }}>
+                  ⟳ Convertir en facture
+                </button>
+                <button className="btn btn-outline" style={{justifyContent:'center'}} onClick={()=>{ if(!user){onShowAuth();return;} if(!isPro()){onShowUpgrade();return;} setModal('stats'); }}>
+                  ◈ Statistiques
+                </button>
+                <button className="btn btn-outline" style={{justifyContent:'center',borderColor:(user?.plan==='team'||user?.plan==='pro')?'rgba(22,119,90,.35)':'#e0dbd4'}} onClick={async ()=>{ if(!user){onShowAuth();return;} if(!savedQuote?.id){ toast('Sauvegarde en cours…','info'); const saved=await saveQuote(); if(!saved) return; setSavedQuote(saved); setQuoteNum(saved.number); } setModal('relance'); }}>
+                  ⟳ Relances auto{isPro()?<span style={{fontSize:10,color:'#16775a',marginLeft:4}}>{user.plan==='team'?'◆':'✦'}</span>:<span style={{fontSize:10,color:'#a89e92',marginLeft:4}}>· Pro</span>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* ═══ RIGHT COLUMN — Preview ═══ */}
+        <div style={{position:'sticky',top:80}}>
+          <div style={{background:'#fff',border:'1px solid #e8e3dc',borderRadius:16,overflow:'hidden',boxShadow:'0 2px 12px rgba(26,25,22,.06)'}}>
+            {/* Preview header */}
+            <div style={{padding:'14px 18px',borderBottom:'1px solid #f0ede8',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:13,color:'#1a1916'}}>Aperçu en direct</div>
+                <div style={{fontSize:11,color:'#a89e92',marginTop:1}}>Identique au PDF téléchargé</div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <div style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',animation:'pulse 2s infinite'}}/>
+                <div style={{fontSize:9,fontWeight:700,color:'#16775a',letterSpacing:'.08em'}}>LIVE</div>
+              </div>
+            </div>
+            {/* Preview body — scaled down A4 */}
+            <div style={{padding:16,background:'#f5f4f1'}}>
+              <div style={{transform:'scale(0.72)',transformOrigin:'top left',width:'100%',marginBottom:-86}}>
+                <div style={{width:'calc(100%/0.72)'}}>
+                  <QuotePreview />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
       </div>
 
       {modal==='sig'&&<SignatureModal onClose={()=>setModal(null)} onSign={async data=>{setSigData(data);toast('Signature enregistrée ✦');if(user&&user.plan==='starter'){try{const d=await api('/quotes/quota/status');setQuota(d);}catch(_){}}}} />}
