@@ -4,6 +4,7 @@ require('dotenv').config();
 const express      = require('express');
 const cors         = require('cors');
 const helmet       = require('helmet');
+const compression  = require('compression');
 const rateLimit    = require('express-rate-limit');
 const path         = require('path');
 
@@ -53,6 +54,17 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
+  maxAge: 86400, // Cache CORS preflight 24h → élimine les requêtes OPTIONS répétées
+}));
+
+// ─── Compression gzip/brotli — réduit 70-80% la taille des réponses JSON ─────
+app.use(compression({
+  level: 6,             // bon compromis vitesse/taille
+  threshold: 512,       // ne compresse que si > 512 bytes
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
 }));
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
@@ -71,6 +83,18 @@ const authLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
+
+// ─── Cache headers — accélère les GET répétés côté navigateur ─────────────────
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET') {
+    // Données privées (auth requise), cachées 30s côté navigateur
+    // stale-while-revalidate : sert le cache pendant qu'il revalide en background
+    res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+  } else {
+    res.set('Cache-Control', 'no-store');
+  }
+  next();
+});
 
 // ─── Body parsers ─────────────────────────────────────────────────────────────
 // Note: /api/webhooks/paypal utilise express.raw(), monté avant json()
@@ -97,16 +121,24 @@ app.use('/api',            teamMembersRoutes);
 initTeamTable();
 
 // ─── Statique (logos publics) ─────────────────────────────────────────────────
-app.use('/uploads', express.static(path.resolve(process.env.UPLOAD_DIR || './uploads')));
+app.use('/uploads', express.static(path.resolve(process.env.UPLOAD_DIR || './uploads'), {
+  maxAge: '7d',         // logos cachés 7 jours
+  etag: true,
+  lastModified: true,
+  immutable: false,
+}));
 
-// ─── Health check ─────────────────────────────────────────────────────────────
+// ─── Health check (rapide, pas de JSON.stringify inutile) ─────────────────────
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'Quotly Backend',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-  });
+  res.set('Cache-Control', 'no-cache');
+  res.json({ status: 'ok', ts: Date.now() });
+});
+
+// ─── Warmup — endpoint ultra-léger pour réveiller le serveur Render ───────────
+// Le frontend l'appelle dès le chargement pour réduire le cold start
+app.get('/api/warmup', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(204).end();
 });
 
 // ─── API docs rapides ─────────────────────────────────────────────────────────

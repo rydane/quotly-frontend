@@ -2,12 +2,13 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// ✅ FIX #4 : Pool limité à 1 connexion max pour Vercel serverless
-// (avant : pool sans limite → accumulation de connexions au fil des cold starts → timeouts)
+// Pool optimisé : 5 connexions pour paralléliser les requêtes (Render gère bien)
+// idleTimeout court pour libérer vite les connexions inutilisées
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 1,
-  idleTimeoutMillis: 10000,
+  max: 5,
+  min: 1,                        // garde 1 connexion chaude en permanence
+  idleTimeoutMillis: 15000,
   connectionTimeoutMillis: 5000,
   ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase')
     ? { rejectUnauthorized: false }
@@ -285,21 +286,27 @@ async function initSchema() {
     `);
   } catch (e) { /* ignore */ }
 
-  // ── Index pour accélérer les lookups du scheduler ───────────────────────
-  try {
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_relances_due
-        ON relances (next_send_at)
-        WHERE active = TRUE AND next_send_at IS NOT NULL;
-    `);
-  } catch (e) { /* ignoré si déjà présent */ }
-
-  try {
-    await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_relances_quote
-        ON relances (quote_id, user_id);
-    `);
-  } catch (e) { /* ignoré */ }
+  // ── Index performance : accélère les requêtes les plus fréquentes ──────
+  const indexQueries = [
+    // Users : lookup par email (login, register, forgot-password)
+    `CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)`,
+    // Quotes : liste par user triée par date (page principale)
+    `CREATE INDEX IF NOT EXISTS idx_quotes_user ON quotes (user_id, created_at DESC)`,
+    // Quotes : lookup par status (dashboard stats)
+    `CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes (user_id, status)`,
+    // Invoices : liste par user
+    `CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices (user_id, created_at DESC)`,
+    // Support : messages par user
+    `CREATE INDEX IF NOT EXISTS idx_support_user ON support_messages (user_id, created_at DESC)`,
+    // Email logs : par quote
+    `CREATE INDEX IF NOT EXISTS idx_email_logs_quote ON email_logs (quote_id, sent_at DESC)`,
+    // Relances scheduler
+    `CREATE INDEX IF NOT EXISTS idx_relances_due ON relances (next_send_at) WHERE active = TRUE AND next_send_at IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_relances_quote ON relances (quote_id, user_id)`,
+  ];
+  for (const q of indexQueries) {
+    try { await db.query(q); } catch (e) { /* ignoré si déjà présent */ }
+  }
 
   // ── CORRECTION FK : users.team_id ne doit PAS pointer vers teams(id) ──────
   // Le code utilise l'id du compte propriétaire directement comme team_id.
