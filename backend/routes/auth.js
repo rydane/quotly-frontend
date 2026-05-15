@@ -167,6 +167,28 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) { console.error('reset-password:', err); res.status(500).json({ error: 'Erreur serveur.' }); }
 });
 
+// POST /api/auth/admin-switch-plan — admin uniquement : changer de plan sans payer
+const ADMIN_EMAILS = ['berkiadam92@gmail.com', 'rydane.j@gmail.com', 'tapasoumbounou@gmail.com'];
+
+router.post('/admin-switch-plan', requireAuth, async (req, res) => {
+  try {
+    if (!ADMIN_EMAILS.includes(req.user.email?.toLowerCase())) {
+      return res.status(403).json({ error: 'Accès refusé.' });
+    }
+    const { plan } = req.body;
+    const validPlans = ['starter', 'pro', 'team', 'enterprise'];
+    if (!plan || !validPlans.includes(plan)) {
+      return res.status(400).json({ error: 'Plan invalide. Plans disponibles : ' + validPlans.join(', ') });
+    }
+    await db.run('UPDATE users SET plan = $1 WHERE id = $2', [plan, req.user.id]);
+    const user = await db.get('SELECT id, email, name, plan, role, team_id FROM users WHERE id = $1', [req.user.id]);
+    res.json({ message: `Plan changé en "${plan}".`, user });
+  } catch (err) {
+    console.error('admin-switch-plan:', err);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // DELETE /api/auth/account
 router.delete('/account', requireAuth, async (req, res) => {
   try {

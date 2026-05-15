@@ -23,6 +23,7 @@ const webhooksRoutes  = require('./routes/webhooks');
 const { router: relancesRoutes, cronRouter: relancesCronRouter } = require('./routes/relances');
 const { router: notificationsRoutes } = require('./routes/notifications');
 const clientsRoutes   = require('./routes/clients');
+const supportRoutes   = require('./routes/support');
 const { startRelanceScheduler } = require('./services/relanceScheduler');
 
 const app  = express();
@@ -91,6 +92,7 @@ app.use('/api/settings',   settingsRoutes);
 app.use('/api/team',       teamRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/clients',    clientsRoutes);
+app.use('/api/support',    supportRoutes);
 app.use('/api',            teamMembersRoutes);
 initTeamTable();
 
@@ -112,7 +114,7 @@ app.get('/api', (req, res) => {
   res.json({
     service: 'Quotly API v1',
     endpoints: {
-      auth:      ['POST /api/auth/register', 'POST /api/auth/login', 'GET /api/auth/me', 'PUT /api/auth/password', 'DELETE /api/auth/account'],
+      auth:      ['POST /api/auth/register', 'POST /api/auth/login', 'GET /api/auth/me', 'PUT /api/auth/password', 'POST /api/auth/admin-switch-plan', 'DELETE /api/auth/account'],
       quotes:    ['GET /api/quotes', 'POST /api/quotes', 'GET /api/quotes/:id', 'PUT /api/quotes/:id', 'DELETE /api/quotes/:id', 'GET /api/quotes/:id/pdf', 'POST /api/quotes/:id/send', 'POST /api/quotes/:id/duplicate'],
       invoices:  ['GET /api/invoices', 'POST /api/invoices', 'POST /api/invoices/from-quote/:id', 'GET /api/invoices/:id', 'PUT /api/invoices/:id', 'DELETE /api/invoices/:id', 'GET /api/invoices/:id/pdf', 'POST /api/invoices/:id/send'],
       sign:      ['GET /api/sign/:token', 'POST /api/sign/:token', 'POST /api/sign/:token/refuse', 'GET /api/sign/status/:quoteId'],
@@ -121,6 +123,7 @@ app.get('/api', (req, res) => {
       team:      ['GET /api/team', 'POST /api/team', 'POST /api/team/invite', 'DELETE /api/team/members/:id', 'GET /api/team/quotes'],
       notifications: ['GET /api/notifications', 'GET /api/notifications/unread-count', 'PUT /api/notifications/:id/read', 'PUT /api/notifications/read-all', 'DELETE /api/notifications/:id', 'DELETE /api/notifications'],
       clients:   ['GET /api/clients', 'POST /api/clients', 'GET /api/clients/:id', 'PUT /api/clients/:id', 'DELETE /api/clients/:id', 'GET /api/clients/:id/history'],
+      support:   ['POST /api/support/message', 'GET /api/support/messages', 'GET /api/support/messages/unread-count', 'PUT /api/support/messages/:id/read', 'POST /api/support/messages/:id/reply', 'DELETE /api/support/messages/:id'],
       webhooks:  ['POST /api/webhooks/paypal'],
     },
   });

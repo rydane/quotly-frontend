@@ -196,6 +196,23 @@ async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_clients_team
       ON clients (team_id) WHERE team_id IS NOT NULL;
+
+    -- ─── Support : messages du support client ───────────────────────────
+    CREATE TABLE IF NOT EXISTS support_messages (
+      id          TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_email  TEXT NOT NULL,
+      user_name   TEXT NOT NULL,
+      user_plan   TEXT NOT NULL DEFAULT 'starter',
+      subject     TEXT NOT NULL,
+      message     TEXT NOT NULL,
+      read        BOOLEAN NOT NULL DEFAULT FALSE,
+      replies     JSONB NOT NULL DEFAULT '[]',
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_support_messages_read
+      ON support_messages (read, created_at DESC);
   `);
 
   // ── Migrations colonnes ────────────────────────────────────────────────────
