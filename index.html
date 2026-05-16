@@ -5515,113 +5515,147 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
         </div>
       ) : (<>
 
-      {/* ── 6 KPI Cards ── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:14,marginBottom:24}}>
-        {kpiCards.map((card,idx)=>(
-          <article key={idx} style={{padding:'18px 20px',borderRadius:14,border:'1px solid #f1f5f9',background:'#fff',transition:'all .25s',cursor:'default'}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor='#dcf2ea';e.currentTarget.style.boxShadow='0 4px 16px rgba(22,119,90,.06)';e.currentTarget.style.transform='translateY(-2px)';}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor='#f1f5f9';e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none';}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-              <span style={{fontSize:12,fontWeight:600,color:'#94a3b8',letterSpacing:'.01em'}}>{card.label}</span>
-              <div style={{width:36,height:36,borderRadius:10,background:card.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={card.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{card.icon}</svg>
+      {/* ── 4 KPI Cards — Shopify-style with sparklines ── */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:20}}>
+        {[
+          {label:'CA Réalisé',value:stats?fmtMoney(stats.caRealise):'0,00 €',sub:'—',color:'#16775a',data:chartData.slice(-7)},
+          {label:'Taux de conversion',value:stats?stats.acceptanceRate+'%':'0 %',sub:'—',color:'#3b82f6',data:[]},
+          {label:'Devis créés',value:stats?String(stats.quotes):'0',sub:'—',color:'#6366f1',data:[]},
+          {label:'Clients',value:stats?String(stats.clients):'0',sub:'—',color:'#ec4899',data:[]},
+        ].map((card,idx)=>{
+          // Mini sparkline from data
+          const pts = card.data.length>1 ? card.data : [{value:0},{value:0},{value:0},{value:0},{value:0}];
+          const maxV = Math.max(...pts.map(p=>p.value),1);
+          const sparkW=80, sparkH=28;
+          const sparkPts = pts.map((p,i)=>({x:(i/(pts.length-1))*sparkW, y:sparkH-2-(p.value/maxV)*(sparkH-4)}));
+          const sparkLine = sparkPts.map((p,i)=>i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`).join(' ');
+          return (
+            <article key={idx} style={{padding:'16px 20px',borderRadius:12,border:'1px solid #e8eaed',background:'#fff',cursor:'default'}}>
+              <div style={{fontSize:12,fontWeight:500,color:'#6b7280',marginBottom:4}}>{card.label}</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div>
+                  <div style={{fontSize:String(card.value).length>8?18:22,fontWeight:700,color:'#1a1a1a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{card.value}<span style={{fontSize:13,fontWeight:400,color:'#9ca3af',marginLeft:6}}>—</span></div>
+                </div>
+                <svg width={sparkW} height={sparkH} viewBox={`0 0 ${sparkW} ${sparkH}`} style={{flexShrink:0}}>
+                  <path d={sparkLine} fill="none" stroke={card.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </div>
-            </div>
-            <div style={{fontSize:String(card.value).length>8?20:String(card.value).length>6?24:28,fontWeight:800,color:'#0f0e0c',letterSpacing:'-.03em',fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{card.value}</div>
-            <div style={{fontSize:12,color:'#94a3b8',marginTop:4}}>{card.sub}</div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
-      {/* ── Main Charts Row ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}} className="col-2">
+      {/* ── Main Row: Large Chart (65%) + Ventilation Panel (35%) — Shopify style ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:16,marginBottom:20}}>
 
-        {/* Revenue Area Chart */}
-        <div style={{borderRadius:14,border:'1px solid #f1f5f9',background:'#fff',overflow:'hidden',transition:'all .2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor='#dcf2ea';e.currentTarget.style.boxShadow='0 4px 16px rgba(22,119,90,.06)';}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor='#f1f5f9';e.currentTarget.style.boxShadow='none';}}>
+        {/* ── Revenue Area Chart — Large ── */}
+        <div style={{borderRadius:12,border:'1px solid #e8eaed',background:'#fff',overflow:'hidden'}}>
           <div style={{padding:'18px 20px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:34,height:34,borderRadius:9,background:'linear-gradient(135deg,#f0faf6,#dcf2ea)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16775a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              </div>
-              <div>
-                <div style={{fontWeight:700,fontSize:14,color:'#0f0e0c',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Chiffre d'affaires</div>
-                <div style={{fontSize:11,color:'#94a3b8'}}>Réalisé · {period==='12m'?'12 derniers mois':period==='90j'?'90 derniers jours':period==='30j'?'30 derniers jours':'7 derniers jours'}</div>
-              </div>
+            <div>
+              <div style={{fontWeight:600,fontSize:15,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Chiffre d'affaires au fil du temps</div>
             </div>
             <div style={{display:'flex',gap:2,background:'#f4f5f7',borderRadius:8,padding:2}}>
               {['7j','30j','90j','12m'].map(p=>(
-                <button key={p} onClick={()=>setPeriod(p)} style={{padding:'4px 10px',borderRadius:6,border:'none',fontSize:11,fontWeight:period===p?700:500,background:period===p?'#fff':'transparent',color:period===p?'#0f0e0c':'#94a3b8',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",boxShadow:period===p?'0 1px 3px rgba(0,0,0,.06)':'none',transition:'all .15s'}}>{p}</button>
+                <button key={p} onClick={()=>setPeriod(p)} style={{padding:'5px 12px',borderRadius:6,border:'none',fontSize:12,fontWeight:period===p?600:400,background:period===p?'#fff':'transparent',color:period===p?'#1a1a1a':'#9ca3af',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",boxShadow:period===p?'0 1px 3px rgba(0,0,0,.06)':'none',transition:'all .15s'}}>{p}</button>
               ))}
             </div>
           </div>
-          <div style={{padding:'0 12px 4px'}}>
-            <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?18:24,fontWeight:800,color:'#0f0e0c',padding:'0 8px',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}<span style={{fontSize:13,fontWeight:500,color:'#94a3b8',marginLeft:8}}>sur {period==='12m'?'12 mois':period}</span></div>
+          <div style={{padding:'4px 20px 10px'}}>
+            <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?20:26,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}<span style={{fontSize:13,fontWeight:400,color:'#9ca3af',marginLeft:8}}>—</span></div>
           </div>
           <div style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
-            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:220}} preserveAspectRatio="xMidYMid meet">
+            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:300}} preserveAspectRatio="xMidYMid meet">
               <defs>
                 <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#16775a" stopOpacity="0.18"/>
-                  <stop offset="100%" stopColor="#16775a" stopOpacity="0"/>
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.12"/>
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
                 </linearGradient>
               </defs>
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=padT+usableH-pct*usableH;
                 return <g key={i}><line x1={padL} y1={y} x2={W-padR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
-                  <text x={padL-2} y={y+1} textAnchor="end" fill="#c0c8d4" fontSize="2.5" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)}</text></g>;
+                  <text x={padL-2} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.5" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)+' €'}</text></g>;
               })}
               {areaPath && <path d={areaPath} fill="url(#dashGrad)"/>}
-              {linePath && <path d={linePath} fill="none" stroke="#16775a" strokeWidth="0.7" strokeLinecap="round"/>}
+              {linePath && <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="0.8" strokeLinecap="round"/>}
               {chartPoints.map((p,i)=>(
                 <g key={i}>
                   <rect x={p.x-usableW/(sampledData.length*2)} y={0} width={usableW/sampledData.length} height={H} fill="transparent" onMouseEnter={()=>setChartHover(i)} style={{cursor:'pointer'}}/>
-                  {chartHover===i&&<line x1={p.x} y1={padT} x2={p.x} y2={H-padB} stroke="#16775a" strokeWidth="0.25" strokeDasharray="1,1" opacity=".5"/>}
-                  <circle cx={p.x} cy={p.y} r={chartHover===i?'1.5':'0.7'} fill={chartHover===i?'#fff':'#16775a'} stroke="#16775a" strokeWidth={chartHover===i?'0.5':'0.3'} style={{transition:'all .12s'}}/>
-                  {chartHover===i&&<><rect x={p.x-10} y={p.y-10} width="20" height="6" rx="1.5" fill="#0f0e0c"/><text x={p.x} y={p.y-5.5} textAnchor="middle" fill="#fff" fontSize="2.8" fontWeight="700" fontFamily="Plus Jakarta Sans">{fmtMoney(p.value)}</text><text x={p.x} y={p.y+5} textAnchor="middle" fill="#94a3b8" fontSize="2.2" fontFamily="Plus Jakarta Sans">{p.date}</text></>}
+                  {chartHover===i&&<line x1={p.x} y1={padT} x2={p.x} y2={H-padB} stroke="#3b82f6" strokeWidth="0.25" strokeDasharray="1,1" opacity=".5"/>}
+                  <circle cx={p.x} cy={p.y} r={chartHover===i?'1.5':'0'} fill="#3b82f6" stroke="#fff" strokeWidth="0.5" style={{transition:'all .12s'}}/>
+                  {chartHover===i&&<><rect x={p.x-12} y={p.y-10} width="24" height="6" rx="1.5" fill="#1a1a1a"/><text x={p.x} y={p.y-5.5} textAnchor="middle" fill="#fff" fontSize="2.8" fontWeight="600" fontFamily="Plus Jakarta Sans">{fmtMoney(p.value)}</text><text x={p.x} y={p.y+5} textAnchor="middle" fill="#9ca3af" fontSize="2.2" fontFamily="Plus Jakarta Sans">{p.date}</text></>}
                 </g>
               ))}
-              {sampledData.filter((_,i)=>i%Math.max(1,Math.floor(sampledData.length/7))===0||i===sampledData.length-1).map((d,i,arr)=>{
+              {sampledData.filter((_,i)=>i%Math.max(1,Math.floor(sampledData.length/7))===0||i===sampledData.length-1).map((d,i)=>{
                 const idx = sampledData.indexOf(d);
                 const p = chartPoints[idx];
-                return p ? <text key={i} x={p.x} y={H-padB+5} textAnchor="middle" fill="#94a3b8" fontSize="2.5" fontFamily="Plus Jakarta Sans">{d.label}</text> : null;
+                return p ? <text key={i} x={p.x} y={H-padB+5} textAnchor="middle" fill="#9ca3af" fontSize="2.5" fontFamily="Plus Jakarta Sans">{d.label}</text> : null;
               })}
             </svg>
           </div>
+          {/* Legend */}
+          <div style={{padding:'8px 20px 14px',display:'flex',gap:20,borderTop:'1px solid #f5f5f5'}}>
+            <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#6b7280'}}>
+              <span style={{width:10,height:3,borderRadius:2,background:'#3b82f6',display:'inline-block'}}/>
+              Période actuelle
+            </span>
+          </div>
         </div>
 
+        {/* ── Ventilation Panel — Shopify style ── */}
+        <div style={{borderRadius:12,border:'1px solid #e8eaed',background:'#fff',padding:0}}>
+          <div style={{padding:'18px 20px 14px',borderBottom:'1px solid #f5f5f5'}}>
+            <div style={{fontWeight:600,fontSize:15,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Ventilation générale</div>
+          </div>
+          <div style={{padding:0}}>
+            {[
+              {label:'CA Réalisé',value:stats?fmtMoney(stats.caRealise):'0,00 €',color:'#16775a'},
+              {label:'CA Prévisionnel',value:stats?fmtMoney(stats.caPrevi):'0,00 €',color:'#8b5cf6'},
+              {label:'Devis acceptés',value:stats?String(stats.accepted):'0',color:'#10b981'},
+              {label:'Devis en attente',value:stats?String(stats.pending):'0',color:'#f59e0b'},
+              {label:'Devis refusés',value:stats?String(stats.refused):'0',color:'#ef4444'},
+              {label:'Factures émises',value:stats?String(stats.invoiceCount):'0',color:'#3b82f6'},
+              {label:'Factures payées',value:stats?String(stats.invoicePaid):'0',color:'#16775a'},
+              {label:'Clients actifs',value:stats?String(stats.clientsActive):'0',color:'#ec4899'},
+              {label:'Taux conversion',value:stats?stats.acceptanceRate+'%':'0%',color:'#6366f1'},
+            ].map((row,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 20px',borderBottom:i<8?'1px solid #f9f9f9':'none',transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#fafbfc'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <span style={{fontSize:13,color:row.color,fontWeight:500}}>{row.label}</span>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:13,fontWeight:600,color:'#1a1a1a'}}>{row.value}</span>
+                  <span style={{fontSize:12,color:'#9ca3af'}}>—</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Second Row: Bar Chart + Top Clients + Quick Actions ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 280px',gap:16,marginBottom:20}} className="col-3">
+
         {/* Activity Bar Chart */}
-        <div style={{borderRadius:14,border:'1px solid #f1f5f9',background:'#fff',overflow:'hidden',transition:'all .2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor='#dcf2ea';e.currentTarget.style.boxShadow='0 4px 16px rgba(22,119,90,.06)';}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor='#f1f5f9';e.currentTarget.style.boxShadow='none';}}>
+        <div style={{borderRadius:12,border:'1px solid #e8eaed',background:'#fff',overflow:'hidden'}}>
           <div style={{padding:'18px 20px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:34,height:34,borderRadius:9,background:'linear-gradient(135deg,#eef2ff,#e0e7ff)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="8" width="4" height="13" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>
-              </div>
-              <div>
-                <div style={{fontWeight:700,fontSize:14,color:'#0f0e0c',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Activité devis</div>
-                <div style={{fontSize:11,color:'#94a3b8'}}>Par statut · 5 dernières semaines</div>
-              </div>
-            </div>
+            <div style={{fontWeight:600,fontSize:15,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Activité devis</div>
             <div style={{display:'flex',gap:12,alignItems:'center'}}>
-              <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#64748b'}}><span style={{width:8,height:8,borderRadius:2,background:'#16775a',display:'inline-block'}}/> Acceptés</span>
-              <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#64748b'}}><span style={{width:8,height:8,borderRadius:2,background:'#f59e0b',display:'inline-block'}}/> En attente</span>
-              <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#64748b'}}><span style={{width:8,height:8,borderRadius:2,background:'#ef4444',display:'inline-block'}}/> Refusés</span>
+              <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#6b7280'}}><span style={{width:8,height:8,borderRadius:2,background:'#16775a',display:'inline-block'}}/> Acceptés</span>
+              <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#6b7280'}}><span style={{width:8,height:8,borderRadius:2,background:'#f59e0b',display:'inline-block'}}/> En attente</span>
+              <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#6b7280'}}><span style={{width:8,height:8,borderRadius:2,background:'#ef4444',display:'inline-block'}}/> Refusés</span>
             </div>
           </div>
-          {/* Total devis on period */}
           <div style={{padding:'0 20px 6px'}}>
-            <span style={{fontSize:22,fontWeight:800,color:'#0f0e0c',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em'}}>{barData.reduce((s,d)=>s+d.accepted+d.pending+d.refused,0)}</span>
-            <span style={{fontSize:12,color:'#94a3b8',marginLeft:6}}>devis sur 5 semaines</span>
+            <span style={{fontSize:22,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em'}}>{barData.reduce((s,d)=>s+d.accepted+d.pending+d.refused,0)}</span>
+            <span style={{fontSize:12,color:'#9ca3af',marginLeft:6}}>sur 5 semaines</span>
           </div>
           <div style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
-            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:220}} preserveAspectRatio="xMidYMid meet">
+            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:200}} preserveAspectRatio="xMidYMid meet">
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=barPadT+barUsableH-pct*barUsableH;
                 return <g key={i}><line x1={barPadL} y1={y} x2={barW-barPadR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
-                  <text x={barPadL-2} y={y+1} textAnchor="end" fill="#c0c8d4" fontSize="2.3" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
+                  <text x={barPadL-2} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.3" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
               })}
               {barData.map((d,i)=>{
                 const total = d.accepted+d.pending+d.refused;
@@ -5630,11 +5664,9 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
                 const totalH = (total/barMaxVal)*barUsableH;
                 const baseY = barPadT+barUsableH;
                 const isHov = barHover===i;
-                // Stacked: accepted at bottom, pending middle, refused top — single tube
                 const aH = total>0 ? (d.accepted/total)*totalH : 0;
                 const pH = total>0 ? (d.pending/total)*totalH : 0;
                 const rH = total>0 ? (d.refused/total)*totalH : 0;
-                // Round only top and bottom of the full bar (clip-path approach via one rounded rect + colored sections)
                 const barRadius = Math.min(bw/3, 2.5);
                 return (
                   <g key={i} onMouseEnter={()=>setBarHover(i)} style={{cursor:'pointer'}}>
@@ -5642,23 +5674,19 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
                     {isHov&&<rect x={cx-barGroupW/2+1} y={barPadT} width={barGroupW-2} height={barUsableH} rx="2" fill="#f8fafc" opacity=".6"/>}
                     {total>0&&(
                       <g>
-                        {/* Single clipped bar with rounded corners */}
                         <clipPath id={'barClip'+i}><rect x={cx-bw/2} y={baseY-totalH} width={bw} height={totalH} rx={barRadius}/></clipPath>
                         <g clipPath={'url(#barClip'+i+')'}>
-                          {/* Refused (top) */}
-                          {rH>0&&<rect x={cx-bw/2} y={baseY-totalH} width={bw} height={rH} fill="#ef4444" opacity={isHov?1:.75} style={{transition:'opacity .15s'}}/>}
-                          {/* Pending (middle) */}
-                          {pH>0&&<rect x={cx-bw/2} y={baseY-totalH+rH} width={bw} height={pH} fill="#f59e0b" opacity={isHov?1:.75} style={{transition:'opacity .15s'}}/>}
-                          {/* Accepted (bottom) */}
-                          {aH>0&&<rect x={cx-bw/2} y={baseY-aH} width={bw} height={aH} fill="#16775a" opacity={isHov?1:.85} style={{transition:'opacity .15s'}}/>}
+                          {rH>0&&<rect x={cx-bw/2} y={baseY-totalH} width={bw} height={rH} fill="#ef4444" opacity={isHov?1:.75}/>}
+                          {pH>0&&<rect x={cx-bw/2} y={baseY-totalH+rH} width={bw} height={pH} fill="#f59e0b" opacity={isHov?1:.75}/>}
+                          {aH>0&&<rect x={cx-bw/2} y={baseY-aH} width={bw} height={aH} fill="#16775a" opacity={isHov?1:.85}/>}
                         </g>
                       </g>
                     )}
-                    <text x={cx} y={barH-barPadB+6} textAnchor="middle" fill={isHov?'#0f0e0c':'#94a3b8'} fontSize="3" fontWeight={isHov?'700':'500'} fontFamily="Plus Jakarta Sans">{d.label}</text>
+                    <text x={cx} y={barH-barPadB+6} textAnchor="middle" fill={isHov?'#1a1a1a':'#9ca3af'} fontSize="3" fontWeight={isHov?'600':'400'} fontFamily="Plus Jakarta Sans">{d.label}</text>
                     {isHov&&total>0&&(<>
-                      <rect x={cx-16} y={Math.max(1, baseY-totalH-10)} width="32" height="9" rx="2" fill="#0f0e0c"/>
+                      <rect x={cx-16} y={Math.max(1, baseY-totalH-10)} width="32" height="9" rx="2" fill="#1a1a1a"/>
                       <text x={cx} y={Math.max(1, baseY-totalH-10)+3.8} textAnchor="middle" fill="#fff" fontSize="2.5" fontWeight="600" fontFamily="Plus Jakarta Sans">{total} devis</text>
-                      <text x={cx} y={Math.max(1, baseY-totalH-10)+7.2} textAnchor="middle" fill="#94a3b8" fontSize="2.2" fontFamily="Plus Jakarta Sans">{d.accepted} accept. · {d.pending} att. · {d.refused} ref.</text>
+                      <text x={cx} y={Math.max(1, baseY-totalH-10)+7.2} textAnchor="middle" fill="#9ca3af" fontSize="2.2" fontFamily="Plus Jakarta Sans">{d.accepted}✓ · {d.pending}⏳ · {d.refused}✕</text>
                     </>)}
                   </g>
                 );
@@ -5666,95 +5694,39 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
             </svg>
           </div>
         </div>
-      </div>
-
-      {/* ── Second Row: Funnel + Top Clients + Actions ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 280px',gap:16,marginBottom:20}} className="col-3">
-
-        {/* Conversion Funnel */}
-        <div style={{borderRadius:14,border:'1px solid #f1f5f9',background:'#fff',padding:'20px',transition:'all .2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor='#dcf2ea';e.currentTarget.style.boxShadow='0 4px 16px rgba(22,119,90,.06)';}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor='#f1f5f9';e.currentTarget.style.boxShadow='none';}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
-            <div style={{width:34,height:34,borderRadius:9,background:'linear-gradient(135deg,#ecfdf5,#d1fae5)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            </div>
-            <div>
-              <div style={{fontWeight:700,fontSize:14,color:'#0f0e0c',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Tunnel de conversion</div>
-              <div style={{fontSize:11,color:'#94a3b8'}}>De la création à l'acceptation</div>
-            </div>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            {funnel.map((step,i)=>{
-              const maxW = funnel[0].value || 1;
-              const pct = Math.round((step.value/maxW)*100);
-              const widthPct = Math.max(8, pct);
-              return (
-                <div key={i}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                    <span style={{fontSize:13,fontWeight:600,color:'#334155'}}>{step.label}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:step.color}}>{step.value}</span>
-                  </div>
-                  <div style={{height:28,background:'#f8fafc',borderRadius:8,overflow:'hidden',position:'relative'}}>
-                    <div style={{height:'100%',width:widthPct+'%',background:step.bg,borderRadius:8,transition:'width .5s ease',display:'flex',alignItems:'center',paddingLeft:8}}>
-                      <span style={{fontSize:11,fontWeight:700,color:step.color}}>{pct}%</span>
-                    </div>
-                  </div>
-                  {i<funnel.length-1&&<div style={{display:'flex',justifyContent:'center',margin:'4px 0 0'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg></div>}
-                </div>
-              );
-            })}
-            {stats && stats.quotes > 0 && (
-              <div style={{marginTop:8,padding:'10px 14px',background:'#f0faf6',borderRadius:10,display:'flex',alignItems:'center',gap:8}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16775a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                <span style={{fontSize:13,fontWeight:700,color:'#16775a'}}>{stats.acceptanceRate}% taux de conversion</span>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Top Clients */}
-        <div style={{borderRadius:14,border:'1px solid #f1f5f9',background:'#fff',padding:'20px',transition:'all .2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor='#dcf2ea';e.currentTarget.style.boxShadow='0 4px 16px rgba(22,119,90,.06)';}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor='#f1f5f9';e.currentTarget.style.boxShadow='none';}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:34,height:34,borderRadius:9,background:'linear-gradient(135deg,#fdf2f8,#fce7f3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              </div>
-              <div>
-                <div style={{fontWeight:700,fontSize:14,color:'#0f0e0c',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Top clients</div>
-                <div style={{fontSize:11,color:'#94a3b8'}}>Par CA généré</div>
-              </div>
-            </div>
-            <button onClick={onGoClients} style={{padding:'5px 12px',borderRadius:7,border:'1px solid #e2e5e9',background:'#fff',fontSize:11,fontWeight:600,color:'#64748b',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",transition:'all .15s'}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor='#16775a';e.currentTarget.style.color='#16775a';}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor='#e2e5e9';e.currentTarget.style.color='#64748b';}}>
+        <div style={{borderRadius:12,border:'1px solid #e8eaed',background:'#fff',padding:'20px'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+            <div style={{fontWeight:600,fontSize:15,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Top clients</div>
+            <button onClick={onGoClients} style={{padding:'5px 12px',borderRadius:7,border:'1px solid #e8eaed',background:'#fff',fontSize:11,fontWeight:600,color:'#6b7280',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",transition:'all .15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='#3b82f6';e.currentTarget.style.color='#3b82f6';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='#e8eaed';e.currentTarget.style.color='#6b7280';}}>
               Voir tout
             </button>
           </div>
           {topClients.length===0 ? (
             <div style={{textAlign:'center',padding:'24px 0'}}>
-              <p style={{color:'#94a3b8',fontSize:13,margin:0}}>Aucun client pour le moment</p>
-              <button onClick={onGoClients} style={{marginTop:10,padding:'7px 16px',borderRadius:8,border:'1px solid #e2e5e9',background:'#fff',fontSize:12,fontWeight:600,color:'#16775a',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Ajouter un client</button>
+              <p style={{color:'#9ca3af',fontSize:13,margin:0}}>Aucun client</p>
+              <button onClick={onGoClients} style={{marginTop:10,padding:'7px 16px',borderRadius:8,border:'1px solid #e8eaed',background:'#fff',fontSize:12,fontWeight:600,color:'#3b82f6',cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Ajouter</button>
             </div>
           ) : (
             <div style={{display:'flex',flexDirection:'column',gap:2}}>
               {topClients.map((cl,i)=>{
                 const rev = parseFloat(cl.total_revenue)||0;
                 const initials = ((cl.name||cl.company||'?')[0]||'?').toUpperCase();
-                const colors = ['#16775a','#6366f1','#f59e0b','#ec4899','#8b5cf6'];
+                const colors = ['#16775a','#3b82f6','#f59e0b','#ec4899','#8b5cf6'];
                 return (
                   <div key={cl.id||i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',borderRadius:8,transition:'background .12s'}}
                     onMouseEnter={e=>e.currentTarget.style.background='#fafbfc'}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    <div style={{width:12,fontSize:11,fontWeight:700,color:'#cbd5e1',textAlign:'center'}}>{i+1}</div>
-                    <div style={{width:32,height:32,borderRadius:'50%',background:colors[i%5],display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:12,fontWeight:700,flexShrink:0}}>{initials}</div>
+                    <div style={{width:12,fontSize:11,fontWeight:600,color:'#cbd5e1',textAlign:'center'}}>{i+1}</div>
+                    <div style={{width:30,height:30,borderRadius:'50%',background:colors[i%5],display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:11,fontWeight:700,flexShrink:0}}>{initials}</div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,color:'#0f0e0c',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cl.name||cl.company||'—'}</div>
-                      <div style={{fontSize:11,color:'#94a3b8'}}>{cl.quotes_count||0} devis · {cl.invoices_count||0} factures</div>
+                      <div style={{fontWeight:600,fontSize:13,color:'#1a1a1a',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cl.name||cl.company||'—'}</div>
+                      <div style={{fontSize:11,color:'#9ca3af'}}>{cl.quotes_count||0} devis · {cl.invoices_count||0} factures</div>
                     </div>
-                    <div style={{fontWeight:700,fontSize:13,color:'#0f0e0c',flexShrink:0}}>{fmtMoney(rev)}</div>
+                    <div style={{fontWeight:600,fontSize:13,color:'#1a1a1a',flexShrink:0}}>{fmtMoney(rev)}</div>
                   </div>
                 );
               })}
@@ -5764,53 +5736,28 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
 
         {/* Quick Actions */}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.06em',padding:'0 2px'}}>Actions rapides</div>
+          <div style={{fontSize:11,fontWeight:600,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.06em',padding:'0 2px'}}>Actions rapides</div>
           {[
-            {label:'Créer un devis',desc:'Nouveau document',color:'#16775a',bg:'linear-gradient(135deg,#f0faf6,#dcf2ea)',action:onGoApp,
+            {label:'Créer un devis',desc:'Nouveau document',color:'#16775a',bg:'#f0faf6',action:onGoApp,
               icon:<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></>},
-            {label:'Gérer les clients',desc:'Module CRM',color:'#6366f1',bg:'linear-gradient(135deg,#eef2ff,#e0e7ff)',action:onGoClients,
+            {label:'Gérer les clients',desc:'Module CRM',color:'#3b82f6',bg:'#eff6ff',action:onGoClients,
               icon:<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></>},
-            {label:'Voir les factures',desc:'Facturation',color:'#f59e0b',bg:'linear-gradient(135deg,#fffbeb,#fef3c7)',action:onGoInvoices,
+            {label:'Voir les factures',desc:'Facturation',color:'#f59e0b',bg:'#fffbeb',action:onGoInvoices,
               icon:<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></>},
           ].map((act,idx)=>(
-            <button key={idx} onClick={act.action} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:12,border:'1px solid #f1f5f9',background:'#fff',cursor:'pointer',transition:'all .2s',textAlign:'left',fontFamily:"'Plus Jakarta Sans',sans-serif",width:'100%'}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor='#dcf2ea';e.currentTarget.style.boxShadow='0 4px 12px rgba(22,119,90,.05)';e.currentTarget.style.transform='translateY(-1px)';}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor='#f1f5f9';e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none';}}>
-              <div style={{width:36,height:36,borderRadius:9,background:act.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <button key={idx} onClick={act.action} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:10,border:'1px solid #e8eaed',background:'#fff',cursor:'pointer',transition:'all .2s',textAlign:'left',fontFamily:"'Plus Jakarta Sans',sans-serif",width:'100%'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='#3b82f6';e.currentTarget.style.transform='translateY(-1px)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='#e8eaed';e.currentTarget.style.transform='none';}}>
+              <div style={{width:34,height:34,borderRadius:8,background:act.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={act.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{act.icon}</svg>
               </div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,color:'#0f0e0c',fontSize:13}}>{act.label}</div>
-                <div style={{fontSize:11,color:'#94a3b8',marginTop:1}}>{act.desc}</div>
+                <div style={{fontWeight:600,color:'#1a1a1a',fontSize:13}}>{act.label}</div>
+                <div style={{fontSize:11,color:'#9ca3af',marginTop:1}}>{act.desc}</div>
               </div>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M9 18l6-6-6-6"/></svg>
             </button>
           ))}
-
-          {/* Revenue comparison card */}
-          <div style={{borderRadius:12,border:'1px solid #f1f5f9',background:'#fff',padding:'14px 16px',marginTop:4}}>
-            <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:10}}>CA Réalisé vs Prévisionnel</div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                  <span style={{fontSize:12,color:'#334155',fontWeight:600}}>Réalisé</span>
-                  <span style={{fontSize:12,color:'#16775a',fontWeight:700}}>{stats?fmtMoney(stats.caRealise):'0 €'}</span>
-                </div>
-                <div style={{height:6,background:'#f1f5f9',borderRadius:3,overflow:'hidden'}}>
-                  <div style={{height:'100%',background:'linear-gradient(90deg,#16775a,#10b981)',borderRadius:3,width:(stats&&stats.caPrevi>0?Math.min(100,Math.round(stats.caRealise/stats.caPrevi*100)):0)+'%',transition:'width .5s'}}/>
-                </div>
-              </div>
-              <div>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                  <span style={{fontSize:12,color:'#334155',fontWeight:600}}>Prévisionnel</span>
-                  <span style={{fontSize:12,color:'#8b5cf6',fontWeight:700}}>{stats?fmtMoney(stats.caPrevi):'0 €'}</span>
-                </div>
-                <div style={{height:6,background:'#f1f5f9',borderRadius:3,overflow:'hidden'}}>
-                  <div style={{height:'100%',background:'linear-gradient(90deg,#8b5cf6,#a78bfa)',borderRadius:3,width:'100%'}}/>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
