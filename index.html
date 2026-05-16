@@ -5454,7 +5454,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   };
 
   // ── Revenue Area Chart SVG ──
-  const W=200, H=80, padL=24, padR=8, padT=12, padB=16;
+  const W=200, H=80, padL=14, padR=4, padT=10, padB=14;
   const usableW=W-padL-padR, usableH=H-padT-padB;
   const maxChartVal = Math.max(...chartData.map(d=>d.value),1)*1.2;
   // Sample points for display (max 30 points for readability)
@@ -5468,7 +5468,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   const areaPath = chartPoints.length>=2 ? linePath+' L'+chartPoints[chartPoints.length-1].x.toFixed(2)+','+(H-padB)+' L'+chartPoints[0].x.toFixed(2)+','+(H-padB)+' Z' : '';
 
   // ── Bar Chart SVG ──
-  const barW=200, barH=70, barPadL=20, barPadR=8, barPadT=8, barPadB=18;
+  const barW=200, barH=70, barPadL=12, barPadR=4, barPadT=8, barPadB=16;
   const barUsableW=barW-barPadL-barPadR, barUsableH=barH-barPadT-barPadB;
   const barMaxVal = Math.max(...barData.map(d=>d.accepted+d.pending+d.refused),1)*1.2;
   const barGroupW = barUsableW/barData.length;
@@ -5574,7 +5574,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=padT+usableH-pct*usableH;
                 return <g key={i}><line x1={padL} y1={y} x2={W-padR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
-                  <text x={padL-2} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.5" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)+' €'}</text></g>;
+                  <text x={padL-1} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.8" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)+' €'}</text></g>;
               })}
               {areaPath && <path d={areaPath} fill="url(#dashGrad)"/>}
               {linePath && <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="0.8" strokeLinecap="round"/>}
@@ -5655,7 +5655,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=barPadT+barUsableH-pct*barUsableH;
                 return <g key={i}><line x1={barPadL} y1={y} x2={barW-barPadR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
-                  <text x={barPadL-2} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.3" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
+                  <text x={barPadL-1} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.6" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
               })}
               {barData.map((d,i)=>{
                 const total = d.accepted+d.pending+d.refused;
