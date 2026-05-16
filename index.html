@@ -5530,11 +5530,11 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
           const sparkPts = pts.map((p,i)=>({x:(i/(pts.length-1))*sparkW, y:sparkH-2-(p.value/maxV)*(sparkH-4)}));
           const sparkLine = sparkPts.map((p,i)=>i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`).join(' ');
           return (
-            <article key={idx} style={{padding:'16px 20px',borderRadius:12,border:'1px solid #e8eaed',background:'#fff',cursor:'default'}}>
-              <div style={{fontSize:12,fontWeight:500,color:'#6b7280',marginBottom:4}}>{card.label}</div>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                <div>
-                  <div style={{fontSize:String(card.value).length>8?18:22,fontWeight:700,color:'#1a1a1a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{card.value}<span style={{fontSize:13,fontWeight:400,color:'#9ca3af',marginLeft:6}}>—</span></div>
+            <article key={idx} style={{padding:'18px 20px',borderRadius:12,border:'1px solid #e8eaed',background:'#fff',cursor:'default'}}>
+              <div style={{fontSize:12,fontWeight:500,color:'#6b7280',marginBottom:8,textTransform:'uppercase',letterSpacing:'.03em'}}>{card.label}</div>
+              <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:8}}>
+                <div style={{minWidth:0,flex:1}}>
+                  <div style={{fontSize:String(card.value).length>10?16:String(card.value).length>7?18:24,fontWeight:700,color:'#1a1a1a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif",lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{card.value}</div>
                 </div>
                 <svg width={sparkW} height={sparkH} viewBox={`0 0 ${sparkW} ${sparkH}`} style={{flexShrink:0}}>
                   <path d={sparkLine} fill="none" stroke={card.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -5545,8 +5545,8 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
         })}
       </div>
 
-      {/* ── Main Row: Large Chart (65%) + Ventilation Panel (35%) — Shopify style ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:16,marginBottom:20}}>
+      {/* ── Main Row: Large Chart (60%) + Ventilation Panel (40%) — Shopify style ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 420px',gap:16,marginBottom:20}}>
 
         {/* ── Revenue Area Chart — Large ── */}
         <div style={{borderRadius:12,border:'1px solid #e8eaed',background:'#fff',overflow:'hidden'}}>
@@ -5561,7 +5561,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
             </div>
           </div>
           <div style={{padding:'4px 20px 10px'}}>
-            <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?20:26,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}<span style={{fontSize:13,fontWeight:400,color:'#9ca3af',marginLeft:8}}>—</span></div>
+            <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?18:fmtMoney(chartPeriodTotal).length>8?20:26,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}</div>
           </div>
           <div style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
             <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:300}} preserveAspectRatio="xMidYMid meet">
@@ -5619,14 +5619,14 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
               {label:'Clients actifs',value:stats?String(stats.clientsActive):'0',color:'#ec4899'},
               {label:'Taux conversion',value:stats?stats.acceptanceRate+'%':'0%',color:'#6366f1'},
             ].map((row,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 20px',borderBottom:i<8?'1px solid #f9f9f9':'none',transition:'background .1s'}}
+              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 22px',borderBottom:i<8?'1px solid #f4f4f5':'none',transition:'background .1s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='#fafbfc'}
                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                <span style={{fontSize:13,color:row.color,fontWeight:500}}>{row.label}</span>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:13,fontWeight:600,color:'#1a1a1a'}}>{row.value}</span>
-                  <span style={{fontSize:12,color:'#9ca3af'}}>—</span>
-                </div>
+                <span style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{width:8,height:8,borderRadius:'50%',background:row.color,display:'inline-block',flexShrink:0}} />
+                  <span style={{fontSize:13,color:'#4b5563',fontWeight:500}}>{row.label}</span>
+                </span>
+                <span style={{fontSize:14,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:'nowrap'}}>{row.value}</span>
               </div>
             ))}
           </div>
@@ -5646,9 +5646,9 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
               <span style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#6b7280'}}><span style={{width:8,height:8,borderRadius:2,background:'#ef4444',display:'inline-block'}}/> Refusés</span>
             </div>
           </div>
-          <div style={{padding:'0 20px 6px'}}>
-            <span style={{fontSize:22,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em'}}>{barData.reduce((s,d)=>s+d.accepted+d.pending+d.refused,0)}</span>
-            <span style={{fontSize:12,color:'#9ca3af',marginLeft:6}}>sur 5 semaines</span>
+          <div style={{padding:'4px 20px 6px'}}>
+            <span style={{fontSize:20,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em'}}>{barData.reduce((s,d)=>s+d.accepted+d.pending+d.refused,0)}</span>
+            <span style={{fontSize:12,color:'#9ca3af',marginLeft:6}}>devis · 5 semaines</span>
           </div>
           <div style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
             <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:200}} preserveAspectRatio="xMidYMid meet">
