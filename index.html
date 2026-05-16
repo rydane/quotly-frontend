@@ -5564,7 +5564,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
             <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?18:fmtMoney(chartPeriodTotal).length>8?20:26,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}</div>
           </div>
           <div style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
-            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:300,display:'block'}} preserveAspectRatio="none">
+            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:300,display:'block'}} preserveAspectRatio="xMinYMin meet">
               <defs>
                 <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.12"/>
@@ -5651,7 +5651,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
             <span style={{fontSize:12,color:'#9ca3af',marginLeft:6}}>devis · 5 semaines</span>
           </div>
           <div style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
-            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:200,display:'block'}} preserveAspectRatio="none">
+            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:200,display:'block'}} preserveAspectRatio="xMinYMin meet">
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=barPadT+barUsableH-pct*barUsableH;
                 return <g key={i}><line x1={barPadL} y1={y} x2={barW-barPadR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
