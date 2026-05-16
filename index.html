@@ -5214,6 +5214,10 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   const [period, setPeriod] = useState('30j');
   const [recentOpen, setRecentOpen] = useState(false);
   const refreshRef = useRef(null);
+  const chartContRef = useRef(null);
+  const barContRef = useRef(null);
+  const [effW, setEffW] = useState(200);
+  const [effBarW, setEffBarW] = useState(200);
 
   function safeNum(val, key) {
     if (val == null) return 0;
@@ -5279,6 +5283,17 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
     refreshRef.current = setInterval(fetchAll, 30000);
     return ()=>clearInterval(refreshRef.current);
   },[fetchAll]);
+
+  // Dynamic chart width to fill container
+  useEffect(()=>{
+    function sync(){
+      if(chartContRef.current){const w=chartContRef.current.getBoundingClientRect().width;if(w>0)setEffW(Math.round(w*80/280));}
+      if(barContRef.current){const w=barContRef.current.getBoundingClientRect().width;if(w>0)setEffBarW(Math.round(w*70/180));}
+    }
+    sync();
+    window.addEventListener('resize',sync);
+    return()=>window.removeEventListener('resize',sync);
+  },[loading]);
 
   // Greeting based on time
   const getGreeting = ()=>{
@@ -5454,7 +5469,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   };
 
   // ── Revenue Area Chart SVG ──
-  const W=200, H=80, padL=14, padR=4, padT=10, padB=14;
+  const H=80, padL=14, padR=4, padT=10, padB=14, W=effW;
   const usableW=W-padL-padR, usableH=H-padT-padB;
   const maxChartVal = Math.max(...chartData.map(d=>d.value),1)*1.2;
   // Sample points for display (max 30 points for readability)
@@ -5468,7 +5483,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   const areaPath = chartPoints.length>=2 ? linePath+' L'+chartPoints[chartPoints.length-1].x.toFixed(2)+','+(H-padB)+' L'+chartPoints[0].x.toFixed(2)+','+(H-padB)+' Z' : '';
 
   // ── Bar Chart SVG ──
-  const barW=200, barH=70, barPadL=12, barPadR=4, barPadT=8, barPadB=16;
+  const barH=70, barPadL=12, barPadR=4, barPadT=8, barPadB=16, barW=effBarW;
   const barUsableW=barW-barPadL-barPadR, barUsableH=barH-barPadT-barPadB;
   const barMaxVal = Math.max(...barData.map(d=>d.accepted+d.pending+d.refused),1)*1.2;
   const barGroupW = barUsableW/barData.length;
@@ -5563,8 +5578,8 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
           <div style={{padding:'4px 20px 10px'}}>
             <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?18:fmtMoney(chartPeriodTotal).length>8?20:26,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}</div>
           </div>
-          <div style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
-            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:280,display:'block'}} preserveAspectRatio="xMinYMin meet" overflow="visible">
+          <div ref={chartContRef} style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
+            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:280,display:'block'}} preserveAspectRatio="xMinYMin meet">
               <defs>
                 <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.12"/>
@@ -5573,7 +5588,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
               </defs>
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=padT+usableH-pct*usableH;
-                return <g key={i}><line x1={padL} y1={y} x2={W*5} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
+                return <g key={i}><line x1={padL} y1={y} x2={W-padR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
                   <text x={padL-1} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.8" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)+' €'}</text></g>;
               })}
               {areaPath && <path d={areaPath} fill="url(#dashGrad)"/>}
@@ -5650,11 +5665,11 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
             <span style={{fontSize:20,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em'}}>{barData.reduce((s,d)=>s+d.accepted+d.pending+d.refused,0)}</span>
             <span style={{fontSize:12,color:'#9ca3af',marginLeft:6}}>devis · 5 semaines</span>
           </div>
-          <div style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
-            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:180,display:'block'}} preserveAspectRatio="xMinYMin meet" overflow="visible">
+          <div ref={barContRef} style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
+            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:180,display:'block'}} preserveAspectRatio="xMinYMin meet">
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=barPadT+barUsableH-pct*barUsableH;
-                return <g key={i}><line x1={barPadL} y1={y} x2={barW*5} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
+                return <g key={i}><line x1={barPadL} y1={y} x2={barW-barPadR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
                   <text x={barPadL-1} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.6" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
               })}
               {barData.map((d,i)=>{
