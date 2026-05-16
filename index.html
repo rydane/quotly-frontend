@@ -5214,10 +5214,6 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   const [period, setPeriod] = useState('30j');
   const [recentOpen, setRecentOpen] = useState(false);
   const refreshRef = useRef(null);
-  const chartContRef = useRef(null);
-  const barContRef = useRef(null);
-  const [effW, setEffW] = useState(200);
-  const [effBarW, setEffBarW] = useState(200);
 
   function safeNum(val, key) {
     if (val == null) return 0;
@@ -5284,16 +5280,6 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
     return ()=>clearInterval(refreshRef.current);
   },[fetchAll]);
 
-  // Dynamic chart width to fill container
-  useEffect(()=>{
-    function sync(){
-      if(chartContRef.current){const w=chartContRef.current.getBoundingClientRect().width;if(w>0)setEffW(Math.round(w*80/280));}
-      if(barContRef.current){const w=barContRef.current.getBoundingClientRect().width;if(w>0)setEffBarW(Math.round(w*70/180));}
-    }
-    sync();
-    window.addEventListener('resize',sync);
-    return()=>window.removeEventListener('resize',sync);
-  },[loading]);
 
   // Greeting based on time
   const getGreeting = ()=>{
@@ -5469,7 +5455,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   };
 
   // ── Revenue Area Chart SVG ──
-  const H=80, padL=14, padR=4, padT=10, padB=14, W=effW;
+  const W=500, H=140, padL=32, padR=8, padT=16, padB=24;
   const usableW=W-padL-padR, usableH=H-padT-padB;
   const maxChartVal = Math.max(...chartData.map(d=>d.value),1)*1.2;
   // Sample points for display (max 30 points for readability)
@@ -5483,7 +5469,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   const areaPath = chartPoints.length>=2 ? linePath+' L'+chartPoints[chartPoints.length-1].x.toFixed(2)+','+(H-padB)+' L'+chartPoints[0].x.toFixed(2)+','+(H-padB)+' Z' : '';
 
   // ── Bar Chart SVG ──
-  const barH=70, barPadL=12, barPadR=4, barPadT=8, barPadB=16, barW=effBarW;
+  const barW=500, barH=160, barPadL=28, barPadR=8, barPadT=14, barPadB=28;
   const barUsableW=barW-barPadL-barPadR, barUsableH=barH-barPadT-barPadB;
   const barMaxVal = Math.max(...barData.map(d=>d.accepted+d.pending+d.refused),1)*1.2;
   const barGroupW = barUsableW/barData.length;
@@ -5578,8 +5564,8 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
           <div style={{padding:'4px 20px 10px'}}>
             <div style={{fontSize:fmtMoney(chartPeriodTotal).length>12?18:fmtMoney(chartPeriodTotal).length>8?20:26,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{fmtMoney(chartPeriodTotal)}</div>
           </div>
-          <div ref={chartContRef} style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
-            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',height:280,display:'block'}} preserveAspectRatio="xMinYMin meet">
+          <div style={{padding:'0 8px 14px',position:'relative'}} onMouseLeave={()=>setChartHover(-1)}>
+            <svg viewBox={'0 0 '+W+' '+H} style={{width:'100%',display:'block'}} preserveAspectRatio="xMinYMin meet">
               <defs>
                 <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.12"/>
@@ -5588,23 +5574,23 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
               </defs>
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=padT+usableH-pct*usableH;
-                return <g key={i}><line x1={padL} y1={y} x2={W-padR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
-                  <text x={padL-1} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.8" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)+' €'}</text></g>;
+                return <g key={i}><line x1={padL} y1={y} x2={W-padR} y2={y} stroke="#f1f5f9" strokeWidth="0.5"/>
+                  <text x={padL-3} y={y+2} textAnchor="end" fill="#9ca3af" fontSize="6" fontFamily="Plus Jakarta Sans,sans-serif">{shortMoney(maxChartVal*pct)+' €'}</text></g>;
               })}
               {areaPath && <path d={areaPath} fill="url(#dashGrad)"/>}
-              {linePath && <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="0.8" strokeLinecap="round"/>}
+              {linePath && <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round"/>}
               {chartPoints.map((p,i)=>(
                 <g key={i}>
                   <rect x={p.x-usableW/(sampledData.length*2)} y={0} width={usableW/sampledData.length} height={H} fill="transparent" onMouseEnter={()=>setChartHover(i)} style={{cursor:'pointer'}}/>
-                  {chartHover===i&&<line x1={p.x} y1={padT} x2={p.x} y2={H-padB} stroke="#3b82f6" strokeWidth="0.25" strokeDasharray="1,1" opacity=".5"/>}
-                  <circle cx={p.x} cy={p.y} r={chartHover===i?'1.5':'0'} fill="#3b82f6" stroke="#fff" strokeWidth="0.5" style={{transition:'all .12s'}}/>
-                  {chartHover===i&&<><rect x={p.x-12} y={p.y-10} width="24" height="6" rx="1.5" fill="#1a1a1a"/><text x={p.x} y={p.y-5.5} textAnchor="middle" fill="#fff" fontSize="2.8" fontWeight="600" fontFamily="Plus Jakarta Sans">{fmtMoney(p.value)}</text><text x={p.x} y={p.y+5} textAnchor="middle" fill="#9ca3af" fontSize="2.2" fontFamily="Plus Jakarta Sans">{p.date}</text></>}
+                  {chartHover===i&&<line x1={p.x} y1={padT} x2={p.x} y2={H-padB} stroke="#3b82f6" strokeWidth="0.5" strokeDasharray="2,2" opacity=".5"/>}
+                  <circle cx={p.x} cy={p.y} r={chartHover===i?3:0} fill="#3b82f6" stroke="#fff" strokeWidth="1" style={{transition:'all .12s'}}/>
+                  {chartHover===i&&<><rect x={p.x-28} y={p.y-18} width="56" height="14" rx="3" fill="#1a1a1a"/><text x={p.x} y={p.y-8} textAnchor="middle" fill="#fff" fontSize="6" fontWeight="600" fontFamily="Plus Jakarta Sans">{fmtMoney(p.value)}</text><text x={p.x} y={p.y+10} textAnchor="middle" fill="#9ca3af" fontSize="5" fontFamily="Plus Jakarta Sans">{p.date}</text></>}
                 </g>
               ))}
               {sampledData.filter((_,i)=>i%Math.max(1,Math.floor(sampledData.length/7))===0||i===sampledData.length-1).map((d,i)=>{
                 const idx = sampledData.indexOf(d);
                 const p = chartPoints[idx];
-                return p ? <text key={i} x={p.x} y={H-padB+5} textAnchor="middle" fill="#9ca3af" fontSize="2.5" fontFamily="Plus Jakarta Sans">{d.label}</text> : null;
+                return p ? <text key={i} x={p.x} y={H-padB+10} textAnchor="middle" fill="#9ca3af" fontSize="6" fontFamily="Plus Jakarta Sans">{d.label}</text> : null;
               })}
             </svg>
           </div>
@@ -5665,12 +5651,12 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
             <span style={{fontSize:20,fontWeight:700,color:'#1a1a1a',fontFamily:"'Plus Jakarta Sans',sans-serif",letterSpacing:'-.02em'}}>{barData.reduce((s,d)=>s+d.accepted+d.pending+d.refused,0)}</span>
             <span style={{fontSize:12,color:'#9ca3af',marginLeft:6}}>devis · 5 semaines</span>
           </div>
-          <div ref={barContRef} style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
-            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',height:180,display:'block'}} preserveAspectRatio="xMinYMin meet">
+          <div style={{padding:'8px 8px 14px'}} onMouseLeave={()=>setBarHover(-1)}>
+            <svg viewBox={'0 0 '+barW+' '+barH} style={{width:'100%',display:'block'}} preserveAspectRatio="xMinYMin meet">
               {[0,0.25,0.5,0.75,1].map((pct,i)=>{
                 const y=barPadT+barUsableH-pct*barUsableH;
-                return <g key={i}><line x1={barPadL} y1={y} x2={barW-barPadR} y2={y} stroke="#f1f5f9" strokeWidth="0.3"/>
-                  <text x={barPadL-1} y={y+1} textAnchor="end" fill="#9ca3af" fontSize="2.6" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
+                return <g key={i}><line x1={barPadL} y1={y} x2={barW-barPadR} y2={y} stroke="#f1f5f9" strokeWidth="0.5"/>
+                  <text x={barPadL-3} y={y+2} textAnchor="end" fill="#9ca3af" fontSize="6" fontFamily="Plus Jakarta Sans">{Math.round(barMaxVal*pct)}</text></g>;
               })}
               {barData.map((d,i)=>{
                 const total = d.accepted+d.pending+d.refused;
@@ -5682,11 +5668,11 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
                 const aH = total>0 ? (d.accepted/total)*totalH : 0;
                 const pH = total>0 ? (d.pending/total)*totalH : 0;
                 const rH = total>0 ? (d.refused/total)*totalH : 0;
-                const barRadius = Math.min(bw/3, 2.5);
+                const barRadius = Math.min(bw/3, 5);
                 return (
                   <g key={i} onMouseEnter={()=>setBarHover(i)} style={{cursor:'pointer'}}>
                     <rect x={cx-barGroupW/2} y={0} width={barGroupW} height={barH} fill="transparent"/>
-                    {isHov&&<rect x={cx-barGroupW/2+1} y={barPadT} width={barGroupW-2} height={barUsableH} rx="2" fill="#f8fafc" opacity=".6"/>}
+                    {isHov&&<rect x={cx-barGroupW/2+2} y={barPadT} width={barGroupW-4} height={barUsableH} rx="4" fill="#f8fafc" opacity=".6"/>}
                     {total>0&&(
                       <g>
                         <clipPath id={'barClip'+i}><rect x={cx-bw/2} y={baseY-totalH} width={bw} height={totalH} rx={barRadius}/></clipPath>
@@ -5697,11 +5683,11 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
                         </g>
                       </g>
                     )}
-                    <text x={cx} y={barH-barPadB+6} textAnchor="middle" fill={isHov?'#1a1a1a':'#9ca3af'} fontSize="3" fontWeight={isHov?'600':'400'} fontFamily="Plus Jakarta Sans">{d.label}</text>
+                    <text x={cx} y={barH-barPadB+12} textAnchor="middle" fill={isHov?'#1a1a1a':'#9ca3af'} fontSize="7" fontWeight={isHov?'600':'400'} fontFamily="Plus Jakarta Sans">{d.label}</text>
                     {isHov&&total>0&&(<>
-                      <rect x={cx-16} y={Math.max(1, baseY-totalH-10)} width="32" height="9" rx="2" fill="#1a1a1a"/>
-                      <text x={cx} y={Math.max(1, baseY-totalH-10)+3.8} textAnchor="middle" fill="#fff" fontSize="2.5" fontWeight="600" fontFamily="Plus Jakarta Sans">{total} devis</text>
-                      <text x={cx} y={Math.max(1, baseY-totalH-10)+7.2} textAnchor="middle" fill="#9ca3af" fontSize="2.2" fontFamily="Plus Jakarta Sans">{d.accepted}✓ · {d.pending}⏳ · {d.refused}✕</text>
+                      <rect x={cx-36} y={Math.max(2, baseY-totalH-24)} width="72" height="20" rx="4" fill="#1a1a1a"/>
+                      <text x={cx} y={Math.max(2, baseY-totalH-24)+9} textAnchor="middle" fill="#fff" fontSize="6" fontWeight="600" fontFamily="Plus Jakarta Sans">{total} devis</text>
+                      <text x={cx} y={Math.max(2, baseY-totalH-24)+17} textAnchor="middle" fill="#9ca3af" fontSize="5" fontFamily="Plus Jakarta Sans">{d.accepted}✓ · {d.pending}⏳ · {d.refused}✕</text>
                     </>)}
                   </g>
                 );
