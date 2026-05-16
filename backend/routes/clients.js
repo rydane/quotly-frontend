@@ -24,14 +24,8 @@ const { requireAuth } = require('../middleware/auth');
 
 const MAX_CLIENTS_PER_USER = 1000;
 
-// Bloque l'accès aux comptes starter
+// ✅ CRM débloqué pour tous les utilisateurs
 function requirePaidPlan(req, res, next) {
-  if (req.user.plan === 'starter') {
-    return res.status(403).json({
-      error: 'Le module Clients (CRM) est réservé aux plans Pro et Équipe.',
-      upgrade: true,
-    });
-  }
   next();
 }
 

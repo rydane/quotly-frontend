@@ -34,10 +34,7 @@ router.post('/', requireAuth, async (req, res) => {
 
 router.post('/from-quote/:quoteId', requireAuth, async (req, res) => {
   try {
-    // Plan check — Pro and Team only
-    if (req.user.plan === 'starter') {
-      return res.status(403).json({ error: 'La conversion en facture est réservée aux plans Pro et Équipe.' });
-    }
+    // ✅ Factures débloquées pour tous les utilisateurs
 
     const quote = await db.get('SELECT * FROM quotes WHERE id = $1 AND user_id = $2', [req.params.quoteId, req.user.id]);
     if (!quote) return res.status(404).json({ error: 'Devis introuvable.' });

@@ -36,17 +36,8 @@ router.post('/:token', async (req, res) => {
       });
     }
 
-    // ✅ Vérifier la limite de signatures du propriétaire du devis
+    // ✅ Signatures débloquées pour tous les utilisateurs
     const owner = await db.get('SELECT id, plan, signatures_count FROM users WHERE id = $1', [quote.user_id]);
-    if (owner && owner.plan === 'starter') {
-      const sigCount = owner.signatures_count || 0;
-      if (sigCount >= QUOTA_FREE_SIGNATURES) {
-        return res.status(403).json({
-          error: `Le propriétaire de ce devis a atteint la limite de ${QUOTA_FREE_SIGNATURES} signatures électroniques sur le plan gratuit.`,
-          upgrade: true
-        });
-      }
-    }
 
     const safeSigner = (signer_name || '').toString().slice(0, 200);
     const now = new Date().toISOString();

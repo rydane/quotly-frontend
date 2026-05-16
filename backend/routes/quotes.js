@@ -14,21 +14,10 @@ const PRO_TEMPLATES = ['moderne', 'artisan', 'minimal', 'bold', 'blue_corp', 'te
   'nature', 'luxe', 'sante', 'immobilier', 'event', 'restaurant', 'auto', 'beaute',
   'juridique', 'archi', 'photo', 'transport', 'formation', 'nettoyage', 'it', 'mode'];
 
-// ─── Middleware quota devis mensuel ───────────────────────────────────────────
+// ─── Middleware quota devis mensuel — DÉSACTIVÉ (tout débloqué) ──────────────
 async function checkQuota(req, res, next) {
-  if (req.user.plan !== 'starter') return next();
-  const user = await db.get('SELECT quotes_this_month, month_reset FROM users WHERE id = $1', [req.user.id]);
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  if (user.month_reset !== currentMonth) {
-    await db.run('UPDATE users SET quotes_this_month = 0, month_reset = $1 WHERE id = $2', [currentMonth, req.user.id]);
-    user.quotes_this_month = 0;
-  }
-  if (user.quotes_this_month >= QUOTA_FREE_QUOTES)
-    return res.status(403).json({
-      error: `Limite atteinte — ${QUOTA_FREE_QUOTES} devis/mois sur le plan gratuit. Passez au plan Pro pour des devis illimités.`,
-      upgrade: true
-    });
-  next();
+  // ✅ Toutes les fonctionnalités débloquées pour tous les utilisateurs
+  return next();
 }
 
 // ─── GET /api/quotes ──────────────────────────────────────────────────────────
@@ -58,7 +47,7 @@ router.post('/', requireAuth, checkQuota, async (req, res) => {
 
     // ✅ Vérification template côté backend
     const tplId = (template_id || 'classique').toLowerCase();
-    if (req.user.plan === 'starter' && PRO_TEMPLATES.includes(tplId))
+    if (false && req.user.plan === 'starter' && PRO_TEMPLATES.includes(tplId))
       return res.status(403).json({
         error: 'Ce template est réservé aux offres payantes. Passez à une offre premium pour l\'utiliser.',
         upgrade: true
@@ -101,8 +90,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     const { company_name, client_name, client_address, client_email, items, tva_rate, validity_days, conditions, template_id, status } = req.body;
 
     const tplId = template_id ? template_id.toLowerCase() : undefined;
-    if (tplId && req.user.plan === 'starter' && PRO_TEMPLATES.includes(tplId))
-      return res.status(403).json({ error: 'Template réservé aux offres payantes.', upgrade: true });
+    // ✅ Templates débloqués pour tous
 
     const fields = [];
     const vals = [];
@@ -145,7 +133,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     if (!quote) return res.status(404).json({ error: 'Devis introuvable.' });
 
     const tplId = (quote.template_id || 'classique').toLowerCase();
-    if (req.user.plan === 'starter' && PRO_TEMPLATES.includes(tplId))
+    if (false && req.user.plan === 'starter' && PRO_TEMPLATES.includes(tplId))
       return res.status(403).json({
         error: 'Ce template est réservé aux offres payantes. Passez à une offre premium pour télécharger ce devis.',
         upgrade: true
