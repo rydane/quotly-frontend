@@ -4014,7 +4014,7 @@ function InvoicesPage({user, onShowUpgrade, onGoQuotes}) {
   );
 
   return (
-    <div style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
+    <div style={{maxWidth:'100%',margin:0,padding:'32px 28px'}}>
       <BackButton onClick={() => window.history.back()} style={{ marginBottom: 16 }} />
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:28,flexWrap:'wrap',gap:12}}>
         <div>
@@ -4208,7 +4208,7 @@ function AdminMessagesPage({user}) {
   const unread = messages.filter(m=>!m.read).length;
 
   return (
-    <div style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
+    <div style={{maxWidth:'100%',margin:0,padding:'32px 28px'}}>
       <div style={{marginBottom:28}}>
         <h1 style={{margin:0,fontSize:24,fontWeight:700,fontFamily:"'Plus Jakarta Sans',sans-serif",color:'#0f0e0c',letterSpacing:'-.02em'}}>Messages support</h1>
         <p style={{margin:'4px 0 0',fontSize:14,color:'#94a3b8'}}>{messages.length} message{messages.length>1?'s':''} · {unread} non lu{unread>1?'s':''}</p>
@@ -4712,7 +4712,7 @@ function CategoryDashboard({title, subtitle, stats, statCards, chartProps, actio
   if(showContent) return children(()=>setShowContent(false));
 
   return (
-    <div style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
+    <div style={{maxWidth:'100%',margin:0,padding:'32px 28px'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:28,flexWrap:'wrap',gap:12}}>
         <div>
           <h1 style={{margin:0,fontSize:24,fontWeight:700,fontFamily:"'Plus Jakarta Sans',sans-serif",color:'#0f0e0c',letterSpacing:'-.02em'}}>{title}</h1>
@@ -6505,7 +6505,7 @@ function ClientDetail({client, onBack, onEdit, onCreateQuote, onChange, tagConfi
   }
 
   return (
-    React.createElement('div',{style:{maxWidth:1000,margin:'0 auto',padding:'24px 28px'}},
+    React.createElement('div',{style:{maxWidth:'100%',margin:0,padding:'24px 28px'}},
       // Back
       React.createElement('button',{onClick:onBack,style:{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',padding:'6px 0',fontSize:13,fontWeight:600,color:'#64748b',fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:20,transition:'color .15s'},onMouseEnter:e=>e.currentTarget.style.color='#1a1916',onMouseLeave:e=>e.currentTarget.style.color='#64748b'},
         React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2},React.createElement('path',{d:'M19 12H5'}),React.createElement('polyline',{points:'12 19 5 12 12 5'})),
