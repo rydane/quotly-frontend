@@ -782,7 +782,7 @@
     font-family: var(--font-sans);
     transition: transform .25s var(--ease-out);
   }
-  .sidebar-main { margin-left: 260px; min-height: 100vh; background: #f0f1f3; }
+  .sidebar-main { margin-left: 260px; min-height: 100vh; background: #f8f9fa; padding: 0; }
   .sidebar-overlay { display: none; }
 
   @media (max-width: 768px) {
@@ -5474,7 +5474,7 @@ function DashboardPage({user, onShowUpgrade, onGoApp, onGoInvoices, onGoClients}
   const barGroupW = barUsableW/barData.length;
 
   return (
-    <div style={{maxWidth:1200,margin:'0 auto',padding:'28px 24px 40px'}}>
+    <div style={{maxWidth:'100%',margin:0,padding:'24px 28px 40px 28px'}}>
 
       {/* ── Header with greeting ── */}
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:28,flexWrap:'wrap',gap:16}}>
