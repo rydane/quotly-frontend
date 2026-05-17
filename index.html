@@ -7056,16 +7056,16 @@ function SupportPage({user}) {
         </div>
 
         {/* Trust bar */}
-        <div style={{display:'flex',justifyContent:'center',gap:24,flexWrap:'wrap',padding:'24px 0',borderTop:'1px solid #f1f5f9'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,padding:'24px 0',borderTop:'1px solid #f1f5f9'}}>
           {[
             {val:'< 2h',label:'Temps de réponse'},
             {val:'98%',label:'Satisfaction'},
             {val:'7j/7',label:'Disponibilité'},
             {val:'100%',label:'Taux de résolution'},
           ].map((s,i)=>(
-            <div key={i} style={{textAlign:'center',minWidth:0,flex:'0 1 auto',padding:'0 8px'}}>
-              <div style={{fontSize:'clamp(16px,3vw,20px)',fontWeight:800,color:'#16775a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:'nowrap'}}>{s.val}</div>
-              <div style={{fontSize:11,color:'#94a3b8',fontWeight:500,marginTop:3}}>{s.label}</div>
+            <div key={i} style={{textAlign:'center',padding:'8px 0'}}>
+              <div style={{fontSize:20,fontWeight:800,color:'#16775a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{s.val}</div>
+              <div style={{fontSize:12,color:'#94a3b8',fontWeight:500,marginTop:4}}>{s.label}</div>
             </div>
           ))}
         </div>
