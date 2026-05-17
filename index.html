@@ -844,9 +844,56 @@
 <div id="root">
 <!-- Fallback si JavaScript ne charge pas (CDN bloqué, JS désactivé) -->
 <noscript>
-  <div style="max-width:600px;margin:60px auto;padding:24px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;font-family:sans-serif">
-    <h1 style="margin:0 0 12px;color:#16775a">DEFACT</h1>
-    <p>Cette application nécessite JavaScript activé.</p>
+  <div style="max-width:760px;margin:60px auto;padding:32px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+    <header>
+      <h1 style="margin:0 0 8px;color:#16775a;font-size:28px">DEFACT</h1>
+      <p style="margin:0 0 24px;color:#64748b;font-size:15px">Logiciel de devis professionnel en ligne — Gratuit pour démarrer</p>
+    </header>
+    <main>
+      <section>
+        <h2 style="font-size:22px;color:#0f0e0c;margin:0 0 12px">Des devis professionnels, en quelques clics</h2>
+        <p style="color:#475569;line-height:1.7">Générez, envoyez et faites signer vos devis en 60 secondes. Conçu pour les artisans, freelances et TPE. Signature électronique, relances automatiques, CRM intégré et facturation conforme 2026.</p>
+      </section>
+      <section style="margin-top:28px">
+        <h2 style="font-size:18px;color:#0f0e0c;margin:0 0 12px">Fonctionnalités</h2>
+        <ul style="color:#475569;line-height:2;padding-left:20px">
+          <li>Génération de devis en 60 secondes</li>
+          <li>22 templates premium adaptés à chaque secteur</li>
+          <li>Envoi par email en 1 clic</li>
+          <li>Signature électronique sécurisée et juridiquement valide</li>
+          <li>Relances automatiques planifiées</li>
+          <li>Conversion devis en facture conforme 2026</li>
+          <li>Tableau de bord et statistiques en temps réel</li>
+          <li>CRM intégré pour le suivi clients</li>
+        </ul>
+      </section>
+      <section style="margin-top:28px">
+        <h2 style="font-size:18px;color:#0f0e0c;margin:0 0 12px">Tarifs</h2>
+        <ul style="color:#475569;line-height:2;padding-left:20px">
+          <li><strong>Starter (gratuit)</strong> — 3 devis/mois, signature électronique, PDF professionnel</li>
+          <li><strong>Pro (14,99€/mois)</strong> — Devis illimités, 22 templates, relances automatiques, CRM</li>
+          <li><strong>Équipe (39,99€/mois)</strong> — 5 utilisateurs, gestion collaborative</li>
+        </ul>
+      </section>
+      <section style="margin-top:28px">
+        <h2 style="font-size:18px;color:#0f0e0c;margin:0 0 12px">Questions fréquentes</h2>
+        <dl style="color:#475569;line-height:1.7">
+          <dt style="font-weight:600;margin-top:12px">Faut-il s'inscrire pour générer un devis ?</dt>
+          <dd style="margin:4px 0 0 0">Non, vous pouvez générer et prévisualiser un devis sans compte. Un compte est requis pour sauvegarder, envoyer par email et faire signer électroniquement.</dd>
+          <dt style="font-weight:600;margin-top:12px">Le PDF est-il légalement valable ?</dt>
+          <dd style="margin:4px 0 0 0">Oui, le document contient toutes les mentions légales obligatoires et peut être signé électroniquement avec horodatage et IP de signature.</dd>
+          <dt style="font-weight:600;margin-top:12px">DEFACT est-il conforme à la facturation électronique 2026 ?</dt>
+          <dd style="margin:4px 0 0 0">Oui, DEFACT s'intègre à une Plateforme Agréée certifiée par la DGFiP pour l'émission des factures conformes au format Factur-X.</dd>
+          <dt style="font-weight:600;margin-top:12px">Puis-je résilier à tout moment ?</dt>
+          <dd style="margin:4px 0 0 0">Oui, sans engagement ni frais. Résiliation en un clic.</dd>
+          <dt style="font-weight:600;margin-top:12px">DEFACT fonctionne-t-il sur mobile ?</dt>
+          <dd style="margin:4px 0 0 0">Oui, l'interface est entièrement responsive. Créez et envoyez vos devis depuis votre smartphone.</dd>
+        </dl>
+      </section>
+    </main>
+    <footer style="margin-top:28px;padding-top:16px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:13px">
+      <p>Cette application fonctionne mieux avec JavaScript activé. <a href="https://defact.fr/" style="color:#16775a">defact.fr</a></p>
+    </footer>
   </div>
 </noscript>
 <!-- Loader visible pendant que React démarre. Sera remplacé par l'app au mount. -->
@@ -7056,16 +7103,16 @@ function SupportPage({user}) {
         </div>
 
         {/* Trust bar */}
-        <div style={{display:'flex',justifyContent:'center',gap:48,flexWrap:'wrap',padding:'24px 0',borderTop:'1px solid #f1f5f9'}}>
+        <div style={{display:'flex',justifyContent:'center',gap:56,flexWrap:'wrap',padding:'28px 0',borderTop:'1px solid #f1f5f9'}}>
           {[
             {val:'< 2h',label:'Temps de réponse'},
             {val:'98%',label:'Satisfaction'},
             {val:'7j/7',label:'Disponibilité'},
             {val:'100%',label:'Taux de résolution'},
           ].map((s,i)=>(
-            <div key={i} style={{textAlign:'center',padding:'0 12px'}}>
-              <div style={{fontSize:20,fontWeight:800,color:'#16775a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{s.val}</div>
-              <div style={{fontSize:12,color:'#94a3b8',fontWeight:500,marginTop:4}}>{s.label}</div>
+            <div key={i} style={{textAlign:'center',padding:'0 14px'}}>
+              <div style={{fontSize:24,fontWeight:800,color:'#16775a',letterSpacing:'-.02em',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{s.val}</div>
+              <div style={{fontSize:13,color:'#94a3b8',fontWeight:500,marginTop:5}}>{s.label}</div>
             </div>
           ))}
         </div>
